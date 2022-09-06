@@ -7,6 +7,15 @@
 本地开发后提交 pr 到 `main` 分支即可
 注意及时 `rebase` 跟踪进度
 
+## 文件结构
+
+├── localtools  //存放数据预处理程序和其他调试用工具
+│   └──
+├── model.py    //模型文件
+├── setting.py  //训练配置文件
+├── train.py    //训练文件
+└── README.md   //说明文件
+
 ## 模型结构
 
 waiting for update
