@@ -1,7 +1,11 @@
+from doctest import master
+from xml.sax.handler import feature_string_interning
 import torch.nn as nn
 import torch
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
+from torch.nn.functional import softmax
 
+from tools import masked_softmax
 
 class StackedLSTM(nn.Module):
     """
@@ -35,75 +39,31 @@ class StackedLSTM(nn.Module):
         
         return input, (h_1, c_1)
             
-            
-class GlobalAttention(nn.Module):
-    """
-    Attention model
-    """
-    def __init__(self, dim):
-        raise NotImplementedError
-        super(GlobalAttention, self).__init__()
+      
+class AdditiveAttention(nn.module):
+    def __init__(self, dim, dropout):
+        super(AdditiveAttention, self).__init__()
+        self.W1 = nn.Linear(dim * 2, dim * 2, bias=False)
+        self.w2 = nn.Linear(dim * 2, 1, bias=False)
+        self.dropout = nn.Dropout(dropout)
         
-        self.dim = dim
-        self.linear_in = nn.Linear(dim, dim, bias=False)
-        self.linear_out = nn.Linear(dim * 2, dim, bias=False)
     
-    def score(self, h_t, h_s):
-        raise NotImplementedError
-        '''
-        Args
-            h_t: (batch_size, tgt_len, hidden_size)
-            h_s: (batch_size, src_len, hidden_size)
-        '''
-        src_batch, src_len, src_dim = h_s.size()
-        tgt_batch, tgt_len, tgt_dim = h_t.size()
-        h_t_ = h_t.view(tgt_batch * tgt_len, -1)
-        h_t_ = self.linear_in(h_t_)
-        h_t = h_t_.view(tgt_batch, tgt_len, -1)
-        h_s_ = h_s.permute(0, 2, 1)
-        # (batch_size, tgt_len=1, src_len)
-        return torch.bmm(h_t, h_s_)
-    
-    def forward(self, source, memory_bank, memory_lengths):
-        raise NotImplementedError
-        '''
+    def forward(self, h, s, valid_lens):
+        """
         Args:
-            source: (batch_size, hidden_size)
-            memory_bank: (batch_size, tgt_len, hidden_size)
-            memory_lengths: (batch_size)
-        '''
-        source = source.unsqueeze(1)
-        align = self.score(source, memory_bank) # (1, src_len)
-        batch_size, tgt_len, src_len = align.size()
+            h (tensor): from decoder
+                [batch_size, feature_dim]
+            s (tensor): from encoder
+                [batch_size, len, feature_dim]
+        """
+        h = h.unsqueeze(1).repeat((1, s.size[1], 1))
+        source = torch.cat((s, h), dim=-1)
+        features = torch.tanh(self.W1(source))
+        scores = self.w2(features).unqueeze(-1)
+        attention_weights = masked_softmax(scores, valid_lens)
+        c = torch.bmm(self.dropout(attention_weights), s)
+        return c, attention_weights
         
-        def sequence_mask(lengths, device):
-            batch_size = lengths.numel()
-            max_len = lengths.max()
-            return (torch.arange(0, max_len)
-                    .type_as(lengths)
-                    .repeat(batch_size, 1)
-                    .lt(lengths.unsqueeze(1))
-                    .to(device))
-        
-        mask = sequence_mask(memory_lengths, device=align.device)
-        mask = mask.unsqueeze(1)
-        align.masked_fill_(~mask, -float('inf'))
-        
-        align_vectors = softmax(align.view(batch_size * tgt_len, -1), -1)
-        align_vectors = align_vectors.view(batch_size, tgt_len, -1)
-        
-        c = torch.bmm(align_vectors, memory_bank)
-        
-        concat_c = torch.cat([c, source], 2).view(batch_size * tgt_len, -1)
-        attn_h = self.linear_out(concat_c).view(batch_size, tgt_len, -1)
-        attn_h = torch.tanh(attn_h)
-        
-        # one_step
-        attn_h = attn_h.squeeze(1)
-        align_vectors = align_vectors.squeeze(1)
-        
-        return attn_h, align_vectors
-
 
 class Encoder(nn.Module):
     def __init__(self, vocab_size, embed_size, hidden_size, num_layers, 
@@ -165,7 +125,7 @@ class Decoder(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embed_size)
         input_size = embed_size + hidden_size
         self.rnn = StackedLSTM(input_size, hidden_size, num_layers, dropout)
-        self.attention = GlobalAttention(hidden_size)
+        self.attention = AdditiveAttention(hidden_size, dropout)
     
     def init_state(self, encoder_hidden):
         def _fix_enc_hidden(hidden):
@@ -175,16 +135,14 @@ class Decoder(nn.Module):
             return hidden
         return tuple(_fix_enc_hidden(enc_hid) for enc_hid in encoder_hidden)
     
-    def forward(self, opt, tgt, memory_bank,lengths, dec_state):
+    def forward(self, opt, tgt, memory_bank, valid_lens, dec_state):
         """
         Args:
             tgt (list of tensor): list of target tensor
             memory_bank (tensor): from encoder
                 (lens, batchSize, hiddenSize * 2)
-            lengths (tensor): from encoder, lengths of src
+            valid_lens (tensor): from encoder, lengths of src
             dec_state: hiddne_state of decoder
-            force_teach_rate (float)
-            padding_value (int)
         Returns:
             dec_state
             dec_outs
@@ -203,20 +161,20 @@ class Decoder(nn.Module):
         dec_outs = []
         attns = []
         
-        # 和 <bos> 同时输入的初始值为全零
-        input_feed = embedded.new(size=(embedded.shape[1], embedded.shape[2])).zero_()
-        # 单步
+        (h, c) = dec_state
+        dec_out = h[-1]
+        
         for embedded_step in embedded.split(1):
-            dec_input = torch.cat([embedded_step.squeeze(0), input_feed], dim=1)
-            rnn_output, dec_state = self.rnn(dec_input, dec_state)
-            dec_out, p_attn = self.attention(
-                rnn_output,
-                memory_bank.permute(1, 0, 2), # 看看为何需要 permute
-                lengths)
-            attns.append(p_attn)
-            input_feed = dec_out
-            dec_outs += [dec_out]
-        return dec_state, dec_outs, attns
+            attn_c, attn_weights = self.attention(
+                dec_out,
+                memory_bank.permute(1, 0, 2),
+                valid_lens)
+            attns.append(attn_weights)
+            rnn_input = torch.cat([embedded_step.squeeze(0), attn_c], dim=1)
+            dec_out, dec_state = self.rnn(rnn_input, dec_state)
+            dec_outs.append(dec_out)
+            
+        return dec_outs, dec_state , attns
     
     
 class NMTModel(nn.Module):
