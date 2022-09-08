@@ -10,13 +10,14 @@
 ## 文件结构
 
 ```
-├── localtools  //存放数据预处理程序和其他调试用工具
+├── localtools  // 存放数据预处理程序和其他调试用工具
 │   └──
-├── model.py    //模型文件
-├── setting.py  //训练配置文件
-├── train.py    //训练文件
-├── vocab.py    //词表构建文件
-└── README.md   //说明文件
+├── model.py    // 模型文件
+├── setting.py  // 训练配置文件
+├── train.py    // 训练文件
+├── vocab.py    // 词表构建文件
+├── tools.py    // 一些共用函数
+└── README.md   // 说明文件
 ```
 
 ## 模型结构
