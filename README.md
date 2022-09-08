@@ -15,6 +15,7 @@
 ├── model.py    //模型文件
 ├── setting.py  //训练配置文件
 ├── train.py    //训练文件
+├── vocab.py    //词表构建文件
 └── README.md   //说明文件
 ```
 
