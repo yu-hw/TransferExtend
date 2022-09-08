@@ -10,3 +10,9 @@ def buildEncoder(opt):
     
     return model.Encoder(vocabSize, embedSize, hiddenSize, numLayers, dropout)
 
+
+def train(opt, net, iterator, optimizer, trainLoss):
+    device = opt['device']
+    
+    net.to(device)
+    net.train()

@@ -129,7 +129,7 @@ class Encoder(nn.Module):
     def forward(self, src):
         """
         Args:
-            src (list): list of source text
+            src (list of tensor): list of source tensor
         Returns:
             memory_bank (tensor):
                 (lens, batchSize, hiddenSize * 2)
@@ -137,19 +137,15 @@ class Encoder(nn.Module):
             hidden_state (tensor, tensor):
                 ([numLayers * 2, batchSize, hiddenSize], [numLayers * 2, batchSize, hiddenSize])
         """
-        srcTensorList = []
-        srcLengths = []
-        for line in src:
-            srcLengths.append(len(line))
-            srcTensorList.append(torch.tensor(line))
-        srcTensorPadded = pad_sequence(srcTensorList, batch_first=True).permute(1, 0) # 将 list of tensor 填充为 tensor vec 并修改为 batch_first=False
-        
         # 使用 pack sequence 方式加速训练
         # 介绍可见 https://chlience.cn/2022/05/09/packed-padded-seqence-and-mask/
-        embeddedSeq = self.embedding(srcTensorPadded)
-        packedSeq = pack_padded_sequence(embeddedSeq, srcLengths, enforce_sorted=False)
-        rnnPackedSeq, hidden_state = self.rnn(packedSeq)
-        memory_bank, lengths = pad_packed_sequence(rnnPackedSeq)
+        src_lengths = []
+        for t in src:
+            src_lengths.append(len(t))
+        embedded_seq = self.embedding(src)
+        packed_seq = pack_padded_sequence(embedded_seq, src_lengths, enforce_sorted=False)
+        rnnpacked_seq, hidden_state = self.rnn(packed_seq)
+        memory_bank, lengths = pad_packed_sequence(rnnpacked_seq)
         return memory_bank, lengths, hidden_state
 
 
@@ -179,23 +175,73 @@ class Decoder(nn.Module):
             return hidden
         return tuple(_fix_enc_hidden(enc_hid) for enc_hid in encoder_hidden)
     
-    def forward(self, tgt, memory_bank, memory_lengths, dec_state):
-        raise NotImplementedError
+    def forward(self, opt, tgt, memory_bank,lengths, dec_state):
+        """
+        Args:
+            tgt (list of tensor): list of target tensor
+            memory_bank (tensor): from encoder
+                (lens, batchSize, hiddenSize * 2)
+            lengths (tensor): from encoder, lengths of src
+            dec_state: hiddne_state of decoder
+            force_teach_rate (float)
+            padding_value (int)
+        Returns:
+            dec_state
+            dec_outs
+            attns
+        """
+        vocab_end = opt['vocab']['tgt_end']
+        vocab_bos = opt['vocab']['tgt_bos']
+        
+        tgt_lengths = []
+        for t in tgt:
+            tgt_lengths.append(len(t))
+        tgt_padded = pad_sequence(tgt, batch_first=True, padding_value=vocab_end).permute(1, 0) # 将 list of tensor 填充为 tensor vec 并修改为 batch_first=False
+        bos_tensor = tgt_padded.new_full((1, tgt_padded.size[1]), vocab_bos)
+        embedded = self.embedding(torch.cat((bos_tensor, tgt_padded[:-1]), dim = 0))
+        
         dec_outs = []
         attns = []
         
-        embedded = self.embedding(tgt)
         # 和 <bos> 同时输入的初始值为全零
-        input_feed = dec_state[0].new(size=(embedded.shape[1], embedded.shape[2])).zero_()
+        input_feed = embedded.new(size=(embedded.shape[1], embedded.shape[2])).zero_()
         # 单步
         for embedded_step in embedded.split(1):
-            decoder_input = torch.cat([embedded_step.squeeze(0), input_feed], dim=1)
-            rnn_output, dec_state = self.rnn(decoder_input, dec_state)
-            decoder_output, p_attn = self.attention(
+            dec_input = torch.cat([embedded_step.squeeze(0), input_feed], dim=1)
+            rnn_output, dec_state = self.rnn(dec_input, dec_state)
+            dec_out, p_attn = self.attention(
                 rnn_output,
-                memory_bank.permute(1, 0, 2),
-                memory_lengths)
+                memory_bank.permute(1, 0, 2), # 看看为何需要 permute
+                lengths)
             attns.append(p_attn)
-            input_feed = decoder_output
-            dec_outs += [decoder_output]
+            input_feed = dec_out
+            dec_outs += [dec_out]
         return dec_state, dec_outs, attns
+    
+    
+class NMTModel(nn.Module):
+    def __init__(self, encoder, decoder, device):
+        super(NMTModel, self).__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.device = device
+    
+    
+    def data2tensor(opt, batch):
+        device = opt['device']
+        
+        src = [torch.tensor(example[0], device=device) for example in batch]
+        tgt = [torch.tensor(example[1], device=device) for example in batch]
+        return src, tgt
+        
+    def forward(self, opt, batch):
+        src, tgt = self.data2tensor(opt, batch)
+        raise NotImplementedError
+        
+        """dec_in = tgt[:-1]
+        memory_bank, lengths, enc_state = self.encoder(src, src_len, src_pad)
+        dec_state = self.decoder.init_state(enc_state)
+        dec_state, dec_outs, attns = self.decoder(dec_in, memory_bank, lengths, dec_state)
+        dec_outs = torch.stack(dec_outs)
+        attns = torch.stack(attns)
+        return dec_outs, attns"""
