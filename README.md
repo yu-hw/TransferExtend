@@ -32,3 +32,9 @@ waiting for update
 - [ ] 完成 MLP 模型构建
 - [ ] 合并 encoder-decoder 和 MLP 模型（multitask）
 - [ ] 测试 multitask 模型
+
+## 资料补充
+
+[Sequence to Sequence (seq2seq) and Attention](https://lena-voita.github.io/nlp_course/seq2seq_and_attention.html#attention_bahdanau_luong)
+[NEURAL MACHINE TRANSLATION BY JOINTLY LEARNING TO ALIGN AND TRANSLATE](https://arxiv.org/pdf/1409.0473.pdf)
+[Bahdanau 注意力](http://zh.d2l.ai/chapter_attention-mechanisms/bahdanau-attention.html)
