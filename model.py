@@ -39,7 +39,7 @@ class StackedLSTM(nn.Module):
         
         return input, (h_1, c_1)
             
-      
+
 class AdditiveAttention(nn.module):
     def __init__(self, dim, dropout):
         super(AdditiveAttention, self).__init__()
@@ -143,10 +143,6 @@ class Decoder(nn.Module):
                 (lens, batchSize, hiddenSize * 2)
             valid_lens (tensor): from encoder, lengths of src
             dec_state: hiddne_state of decoder
-        Returns:
-            dec_state
-            dec_outs
-            attns
         """
         vocab_end = opt['vocab']['tgt_end']
         vocab_bos = opt['vocab']['tgt_bos']
@@ -162,7 +158,7 @@ class Decoder(nn.Module):
         attns = []
         
         (h, c) = dec_state
-        dec_out = h[-1]
+        dec_out = h[-1].squeeze(0)
         
         for embedded_step in embedded.split(1):
             attn_c, attn_weights = self.attention(
@@ -177,13 +173,12 @@ class Decoder(nn.Module):
         return dec_outs, dec_state , attns
     
     
-class NMTModel(nn.Module):
+class Seq2SeqModel(nn.Module):
     def __init__(self, encoder, decoder, device):
-        super(NMTModel, self).__init__()
+        super(Seq2SeqModel, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.device = device
-    
     
     def data2tensor(opt, batch):
         device = opt['device']
@@ -194,12 +189,10 @@ class NMTModel(nn.Module):
         
     def forward(self, opt, batch):
         src, tgt = self.data2tensor(opt, batch)
-        raise NotImplementedError
-        
-        """dec_in = tgt[:-1]
-        memory_bank, lengths, enc_state = self.encoder(src, src_len, src_pad)
+        enc_outs, lengths, enc_state = self.encoder(src)
         dec_state = self.decoder.init_state(enc_state)
-        dec_state, dec_outs, attns = self.decoder(dec_in, memory_bank, lengths, dec_state)
+        dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, dec_state)
         dec_outs = torch.stack(dec_outs)
         attns = torch.stack(attns)
-        return dec_outs, attns"""
+        return dec_outs, attns
+    
