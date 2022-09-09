@@ -1,11 +1,8 @@
-from doctest import master
-from xml.sax.handler import feature_string_interning
 import torch.nn as nn
 import torch
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 from torch.nn.functional import softmax
-
-from tools import masked_softmax
+from utils import masked_softmax, data2tensor
 
 class StackedLSTM(nn.Module):
     """
@@ -179,20 +176,37 @@ class Seq2SeqModel(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
         self.device = device
-    
-    def data2tensor(opt, batch):
-        device = opt['device']
-        
-        src = [torch.tensor(example[0], device=device) for example in batch]
-        tgt = [torch.tensor(example[1], device=device) for example in batch]
-        return src, tgt
         
     def forward(self, opt, batch):
-        src, tgt = self.data2tensor(opt, batch)
+        src, tgt = data2tensor(batch, self.device)
         enc_outs, lengths, enc_state = self.encoder(src)
         dec_state = self.decoder.init_state(enc_state)
         dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, dec_state)
         dec_outs = torch.stack(dec_outs)
         attns = torch.stack(attns)
         return dec_outs, attns
-    
+
+
+def buildEncoder(opt):
+    vocab_size = opt['vocab_size']
+    embed_size = opt['embed_size']
+    hidden_size = opt['hidden_size']
+    num_layers = opt['num_layers']
+    dropout = opt['dropout']
+    return Encoder(vocab_size, embed_size, hidden_size, num_layers, dropout)
+
+
+def buildDecoder(opt):
+    vocab_size = opt['vocab_size']
+    embed_size = opt['embed_size']
+    hidden_size = opt['hidden_size']
+    num_layers = opt['num_layers']
+    dropout = opt['dropout']
+    return Decoder(vocab_size, embed_size, hidden_size, num_layers, dropout)
+
+
+def buildSeq2SeqModel(opt):
+    device = opt['device']
+    encoder = buildEncoder(opt['encoder'])
+    decoder = buildDecoder(opt['decoder'])
+    return Seq2SeqModel(encoder, decoder, device)
