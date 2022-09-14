@@ -1,3 +1,5 @@
+from re import M
+from turtle import forward
 import torch.nn as nn
 import torch
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
@@ -117,6 +119,7 @@ class Decoder(nn.Module):
             num_layers (int): Number of layers, each layer get last layer's output as input
             dropout (float): Dropping out units 
         Addition:
+            默认强制学习
         """
         super(Decoder, self).__init__(**kwargs)
         self.embedding = nn.Embedding(vocab_size, embed_size)
@@ -169,7 +172,7 @@ class Decoder(nn.Module):
             
         return dec_outs, dec_state , attns
     
-    
+   
 class Seq2SeqModel(nn.Module):
     def __init__(self, encoder, decoder, device):
         super(Seq2SeqModel, self).__init__()
@@ -180,11 +183,60 @@ class Seq2SeqModel(nn.Module):
     def forward(self, opt, batch):
         src, tgt = data2tensor(batch, self.device)
         enc_outs, lengths, enc_state = self.encoder(src)
-        dec_state = self.decoder.init_state(enc_state)
+        dec_state = self.decoder.init_state(enc_state) # dec_state 获得的状态应该是 encoder 最后的状态，不知道 pack 之后是不是获取的最后状态
         dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, dec_state)
         dec_outs = torch.stack(dec_outs)
         attns = torch.stack(attns)
         return dec_outs, attns
+
+
+class MLPModel(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size, dropout):
+        super(MLPModel, self).__init__()
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.relu = nn.Relu()
+        self.fc2 = nn.Linear(hidden_size, output_size)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+    
+    def forward(self, input):
+        out = self.fc1(input)
+        out = self.dropout1(out)
+        out = self.relu(out)
+        out = self.dropout2(out)
+        out = self.fc2(out)
+        return out
+
+
+class MultitaskModel(nn.Module):
+    def __init__(self, encoder, decoder, mlp, device):
+        super(MultitaskModel, self).__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.mlp = mlp
+        self.device = device
+        
+    def mlpInput(self, enc_outs, lengths):
+        # 以输入作为参数？
+        
+        # 提取 enc_outs 末尾值
+        # 输出
+        raise NotImplementedError
+    
+    def forward(self, opt, batch):
+        src, tgt = data2tensor(batch, self.device)
+        enc_outs, lengths, enc_state = self.encoder(src)
+        
+        mlp_in = self.mlpInput(enc_outs, lengths)
+        mlp_out = self.mlp(mlp_in)
+        
+        dec_state = self.decoder.init_state(enc_state)
+        dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, dec_state)
+        dec_outs = torch.stack(dec_outs)
+        attns = torch.stack(attns)
+        
+        return dec_outs, attns, mlp_out
+        
 
 
 def buildEncoder(opt):
@@ -210,3 +262,4 @@ def buildSeq2SeqModel(opt):
     encoder = buildEncoder(opt['encoder'])
     decoder = buildDecoder(opt['decoder'])
     return Seq2SeqModel(encoder, decoder, device)
+

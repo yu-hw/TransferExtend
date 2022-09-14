@@ -27,11 +27,11 @@ waiting for update
 
 ## 当前任务
 
-- [ ] dataset-fl 初步处理，排除不可用数据
-- [ ] 完成 encoder-decoder 模型构建
+- [x] dataset-fl 初步处理，排除不可用数据
+- [x] 完成 encoder-decoder 模型构建
 - [ ] 测试 encoder-decoder 模型
-- [ ] 完成 MLP 模型构建
-- [ ] 合并 encoder-decoder 和 MLP 模型（multitask）
+- [x] 完成 MLP 模型构建
+- [x] 合并 encoder-decoder 和 MLP 模型（multitask）
 - [ ] 测试 multitask 模型
 
 ## 资料补充
