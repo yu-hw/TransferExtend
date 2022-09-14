@@ -34,6 +34,13 @@ waiting for update
 - [x] 合并 encoder-decoder 和 MLP 模型（multitask）
 - [ ] 测试 multitask 模型
 
+## 当前问题
+
+- [ ] decoder 强制学习关闭
+- [ ] decoder initial hidden state 获取问题
+- [ ] mlp initial hidden state 获取问题
+- [ ] mlp 是否需要将 src 作为输入，如果需要，如何控制长度
+
 ## 资料补充
 
 [Sequence to Sequence (seq2seq) and Attention](https://lena-voita.github.io/nlp_course/seq2seq_and_attention.html#attention_bahdanau_luong)
