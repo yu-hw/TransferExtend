@@ -21,4 +21,10 @@ def get_opt():
     opt['decoder']['num_layers'] = 2
     opt['decoder']['dropout'] = opt['dropout']
     
+    opt['mlp'] = {}
+    opt['mlp']['input_size'] = opt['hidden_size']
+    opt['mlp']['hidden_size'] = opt['hidden_size'] // 2
+    opt['mlp']['output_size'] = 1
+    opt['mlp']['dropout'] = opt['dropout']
+    
     return opt

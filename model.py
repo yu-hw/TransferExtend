@@ -238,7 +238,6 @@ class MultitaskModel(nn.Module):
         return dec_outs, attns, mlp_out
         
 
-
 def buildEncoder(opt):
     vocab_size = opt['vocab_size']
     embed_size = opt['embed_size']
@@ -257,9 +256,23 @@ def buildDecoder(opt):
     return Decoder(vocab_size, embed_size, hidden_size, num_layers, dropout)
 
 
+def buildMLP(opt):
+    input_size = opt['input_size']
+    hidden_size = opt['hidden_size']
+    output_size = opt['output_size']
+    dropout = opt['dropout']
+    return MLPModel(input_size, hidden_size, output_size, dropout)
+
+
 def buildSeq2SeqModel(opt):
     device = opt['device']
     encoder = buildEncoder(opt['encoder'])
     decoder = buildDecoder(opt['decoder'])
     return Seq2SeqModel(encoder, decoder, device)
 
+def buildMultitaskModel(opt):
+    device = opt['device']
+    encoder = buildEncoder(opt['encoder'])
+    decoder = buildDecoder(opt['decoder'])
+    mlp = buildMLP(opt['mlp'])
+    return MultitaskModel(encoder, decoder, mlp, device)
