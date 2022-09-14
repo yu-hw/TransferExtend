@@ -118,14 +118,14 @@ class Decoder(nn.Module):
             hidden_size (int): Number of hidden cell (for one direction)
             num_layers (int): Number of layers, each layer get last layer's output as input
             dropout (float): Dropping out units 
-        Addition:
-            默认强制学习
         """
         super(Decoder, self).__init__(**kwargs)
-        self.embedding = nn.Embedding(vocab_size, embed_size)
         input_size = embed_size + hidden_size
+        
+        self.embedding = nn.Embedding(vocab_size, embed_size)
         self.rnn = StackedLSTM(input_size, hidden_size, num_layers, dropout)
         self.attention = AdditiveAttention(hidden_size, dropout)
+        self.dense = nn.Linear(hidden_size, vocab_size)
     
     def init_state(self, encoder_hidden):
         def _fix_enc_hidden(hidden):
@@ -135,7 +135,7 @@ class Decoder(nn.Module):
             return hidden
         return tuple(_fix_enc_hidden(enc_hid) for enc_hid in encoder_hidden)
     
-    def forward(self, opt, tgt, memory_bank, valid_lens, dec_state):
+    def forward(self, opt, tgt, memory_bank, valid_lens, enc_state):
         """
         Args:
             tgt (list of tensor): list of target tensor
@@ -154,15 +154,14 @@ class Decoder(nn.Module):
         bos_tensor = tgt_padded.new_full((1, tgt_padded.size[1]), vocab_bos)
         embedded = self.embedding(torch.cat((bos_tensor, tgt_padded[:-1]), dim = 0))
         
-        dec_outs = []
-        attns = []
+        dec_outs, attns = [], []
         
-        (h, c) = dec_state
-        dec_out = h[-1].squeeze(0)
+        dec_state = self.init_state(enc_state)
         
         for embedded_step in embedded.split(1):
+            query = dec_state[0][-1]
             attn_c, attn_weights = self.attention(
-                dec_out,
+                query,
                 memory_bank.permute(1, 0, 2),
                 valid_lens)
             attns.append(attn_weights)
@@ -170,9 +169,11 @@ class Decoder(nn.Module):
             dec_out, dec_state = self.rnn(rnn_input, dec_state)
             dec_outs.append(dec_out)
             
-        return dec_outs, dec_state , attns
+        dec_outs = self.dense(torch.cat(dec_outs, dim=0))
+        attns = torch.cat(dec_outs, dim=0)
+        return dec_outs.permute(1, 0, 2), dec_state , attns
     
-   
+
 class Seq2SeqModel(nn.Module):
     def __init__(self, encoder, decoder, device):
         super(Seq2SeqModel, self).__init__()
@@ -183,11 +184,11 @@ class Seq2SeqModel(nn.Module):
     def forward(self, opt, batch):
         src, tgt = data2tensor(batch, self.device)
         enc_outs, lengths, enc_state = self.encoder(src)
-        dec_state = self.decoder.init_state(enc_state) # dec_state 获得的状态应该是 encoder 最后的状态，不知道 pack 之后是不是获取的最后状态
-        dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, dec_state)
-        dec_outs = torch.stack(dec_outs)
-        attns = torch.stack(attns)
+        dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, enc_state)
         return dec_outs, attns
+    
+    def validation_step(self, src):
+        raise NotImplementedError
 
 
 class MLPModel(nn.Module):
@@ -199,7 +200,11 @@ class MLPModel(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
     
-    def forward(self, input):
+    def init_input(enc_outs):
+        return enc_outs[-1]
+    
+    def forward(self, enc_outs):
+        input = self.init_input(enc_outs)
         out = self.fc1(input)
         out = self.dropout1(out)
         out = self.relu(out)
@@ -215,27 +220,17 @@ class MultitaskModel(nn.Module):
         self.decoder = decoder
         self.mlp = mlp
         self.device = device
-        
-    def mlpInput(self, enc_outs, lengths):
-        # 以输入作为参数？
-        
-        # 提取 enc_outs 末尾值
-        # 输出
-        raise NotImplementedError
     
     def forward(self, opt, batch):
         src, tgt = data2tensor(batch, self.device)
         enc_outs, lengths, enc_state = self.encoder(src)
+        dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, enc_state)
+        mlp_out = self.mlp(enc_outs)
         
-        mlp_in = self.mlpInput(enc_outs, lengths)
-        mlp_out = self.mlp(mlp_in)
-        
-        dec_state = self.decoder.init_state(enc_state)
-        dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, dec_state)
-        dec_outs = torch.stack(dec_outs)
-        attns = torch.stack(attns)
-        
-        return dec_outs, attns, mlp_out
+        return dec_outs, mlp_out, attns
+    
+    def validation_step(self, src):
+        raise NotImplementedError
         
 
 def buildEncoder(opt):
@@ -269,6 +264,7 @@ def buildSeq2SeqModel(opt):
     encoder = buildEncoder(opt['encoder'])
     decoder = buildDecoder(opt['decoder'])
     return Seq2SeqModel(encoder, decoder, device)
+
 
 def buildMultitaskModel(opt):
     device = opt['device']

@@ -36,10 +36,11 @@ waiting for update
 
 ## 当前问题
 
-- [ ] decoder 强制学习关闭
+- [x] decoder force_teaching
+- [x] mlp 是否需要将 src 作为输入，如果需要，如何控制长度
 - [ ] decoder initial hidden state 获取问题
-- [ ] mlp initial hidden state 获取问题
-- [ ] mlp 是否需要将 src 作为输入，如果需要，如何控制长度
+- [ ] mlp initial input 获取问题
+- [ ] loss 计算方式
 
 ## 资料补充
 
