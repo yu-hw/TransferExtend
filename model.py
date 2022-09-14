@@ -182,6 +182,16 @@ class Seq2SeqModel(nn.Module):
         self.device = device
         
     def forward(self, opt, batch):
+        """
+        Args:
+            opt (dict): 
+            batch (list): 详见 data2tensor 模块
+
+        Returns:
+            dec_outs (tensor): value in range [-inf, inf]
+                (lens, batch_size, vocab_size)
+            attns (tensor): attention weights
+        """
         src, tgt = data2tensor(batch, self.device)
         enc_outs, lengths, enc_state = self.encoder(src)
         dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, enc_state)
@@ -222,6 +232,18 @@ class MultitaskModel(nn.Module):
         self.device = device
     
     def forward(self, opt, batch):
+        """
+        Args:
+            opt (dict): 
+            batch (list): 详见 data2tensor 模块
+
+        Returns:
+            dec_outs (tensor): value in range [-inf, inf]
+                (lens, batch_size, vocab_size)
+            mlp_out (tensor): value in range [-inf, inf] 
+                (batch_size)
+            attns (tensor): attention weights
+        """
         src, tgt = data2tensor(batch, self.device)
         enc_outs, lengths, enc_state = self.encoder(src)
         dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, enc_state)
