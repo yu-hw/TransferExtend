@@ -91,7 +91,7 @@ class Encoder(nn.Module):
             lengths.append(len(line))
         return pad_sequence(lines, padding_value=padding_value), lengths
     
-    def forward(self, src):
+    def forward(self, opt, src):
         """
         Args:
             src (list of tensor): list of source tensor
@@ -104,7 +104,9 @@ class Encoder(nn.Module):
         """
         # 使用 pack sequence 方式加速训练
         # 介绍可见 https://chlience.cn/2022/05/09/packed-padded-seqence-and-mask/
-        src, src_lengths = self.dataProcess(src)
+        vocab_pad = opt['vocab']['src_pad']
+        
+        src, src_lengths = self.dataProcess(src, vocab_pad)
         embedded_seq = self.embedding(src)
         packed_seq = pack_padded_sequence(embedded_seq, src_lengths, enforce_sorted=False)
         rnnpacked_seq, hidden_state = self.rnn(packed_seq)
@@ -155,9 +157,9 @@ class Decoder(nn.Module):
             dec_state: hiddne_state of decoder
         """
         vocab_bos = opt['vocab']['tgt_bos']
-        vocab_eos = opt['vocab']['tgt_eos']
+        vocab_pad = opt['vocab']['tgt_pad']
         
-        tgt, tgt_lengths = self.dataProcess(tgt, vocab_eos)
+        tgt, tgt_lengths = self.dataProcess(tgt, vocab_pad)
         bos_tensor = tgt.new_full((1, tgt.shape[1]), vocab_bos)
         embedded = self.embedding(torch.cat((bos_tensor, tgt[:-1]), dim = 0))
         
@@ -195,9 +197,10 @@ class Seq2SeqModel(nn.Module):
             batch (list): 详见 data2tensor 模块
 
         Returns:
-            dec_outs (tensor): value in range [-inf, inf]
+            dec_outs (tensor): raw output of decoder, range in [-inf, inf]
                 (lens, batch_size, vocab_size)
             attns (tensor): attention weights
+                [lens, batch_size, lens]
         """
         src, tgt = data2tensor(batch, self.device)
         enc_outs, lengths, enc_state = self.encoder(src)

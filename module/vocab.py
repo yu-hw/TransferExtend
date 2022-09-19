@@ -47,12 +47,11 @@ def build_vocab(opt, src, tgt):
         src_vocab = tgt_vocab =  Vocab(src + tgt, vocab_size=vocab_size, reserved_tokens=['<pad>', '<bos>', '<eos>'])
     else:
         src_vocab = Vocab(src, vocab_size=vocab_size, reserved_tokens=['<pad>'])
-        tgt_vocab = Vocab(tgt, vocab_size=vocab_size, reserved_tokens=['<pad>', '<bos>', '<eos>'])
+        tgt_vocab = Vocab(tgt, vocab_size=vocab_size, reserved_tokens=['<pad>', '<bos>'])
     
     opt['src_pad'] = src_vocab['<pad>']
-    opt['tgt_pad'] = tgt_vocab['<pad>']
     opt['tgt_bos'] = tgt_vocab['<bos>']
-    opt['tgt_eos'] = tgt_vocab['<eos>']
+    opt['tgt_pad'] = tgt_vocab['<pad>']
     opt['src_vocab_size'] = len(src_vocab.idx2token)
     opt['tgt_vocab_size'] = len(tgt_vocab.idx2token)
     return src_vocab, tgt_vocab
