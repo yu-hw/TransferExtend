@@ -2,17 +2,27 @@ import torch
 from torch.nn.functional import softmax
 
 def sequence_mask(x, valid_lens, value):
-    shape = x.size()
+    """return mask according to lengths
+    Args:
+        x (tensor):
+            [batch_size, len]
+        valid_lens (tensor):
+            [batch_size]
+        value (float):
+    """
+    shape = x.shape
     device = x.device
     
     mask = (torch.arange(0, shape[1])
-            .repeat(shape[0], 1)
+            .unsqueeze(dim=1)
+            .repeat(1, shape[0])
             .lt(valid_lens) # broadcast
+            .permute(1, 0)
             .to(device))
     return x.masked_fill(~mask, value)
 
 
-def masked_softmax(self, x, valid_lens):
+def masked_softmax(x, valid_lens):
     return softmax(sequence_mask(x, valid_lens, -float('inf')))
 
 

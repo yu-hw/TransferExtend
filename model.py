@@ -55,13 +55,13 @@ class AdditiveAttention(nn.Module):
             s (tensor): from encoder
                 [batch_size, len, feature_dim]
         """
-        h = h.unsqueeze(1).repeat((1, s.size[1], 1))
+        h = h.unsqueeze(1).repeat((1, s.shape[1], 1))
         source = torch.cat((s, h), dim=-1)
         features = torch.tanh(self.W1(source))
-        scores = self.w2(features).unqueeze(-1)
-        attention_weights = masked_softmax(scores, valid_lens)
+        scores = self.w2(features).squeeze(-1)
+        attention_weights = masked_softmax(scores, valid_lens).unsqueeze(1)
         c = torch.bmm(self.dropout(attention_weights), s)
-        return c, attention_weights
+        return c.squeeze(1), attention_weights.squeeze(1)
         
 
 class Encoder(nn.Module):
@@ -85,11 +85,11 @@ class Encoder(nn.Module):
                            dropout=dropout,
                            bidirectional=True)
     
-    def dataProcess(self, lines):
+    def dataProcess(self, lines, padding_value=0):
         lengths = []
         for line in lines:
             lengths.append(len(line))
-        return pad_sequence(lines), lengths
+        return pad_sequence(lines, padding_value=padding_value), lengths
     
     def forward(self, src):
         """
@@ -138,6 +138,12 @@ class Decoder(nn.Module):
                                 hidden[1:hidden.size(0):2]], 2)
             return hidden
         return tuple(_fix_enc_hidden(enc_hid) for enc_hid in encoder_hidden)
+        
+    def dataProcess(self, lines, padding_value=0):
+        lengths = []
+        for line in lines:
+            lengths.append(len(line))
+        return pad_sequence(lines, padding_value=padding_value), lengths
     
     def forward(self, opt, tgt, memory_bank, valid_lens, enc_state):
         """
@@ -151,19 +157,16 @@ class Decoder(nn.Module):
         vocab_bos = opt['vocab']['tgt_bos']
         vocab_eos = opt['vocab']['tgt_eos']
         
-        tgt_lengths = []
-        for t in tgt:
-            tgt_lengths.append(len(t))
-        tgt_padded = pad_sequence(tgt, padding_value=vocab_eos).permute(1, 0) # 将 list of tensor 填充为 tensor vec 并修改为 batch_first=False
-        bos_tensor = tgt_padded.new_full((1, tgt_padded.size[1]), vocab_bos)
-        embedded = self.embedding(torch.cat((bos_tensor, tgt_padded[:-1]), dim = 0))
+        tgt, tgt_lengths = self.dataProcess(tgt, vocab_eos)
+        bos_tensor = tgt.new_full((1, tgt.shape[1]), vocab_bos)
+        embedded = self.embedding(torch.cat((bos_tensor, tgt[:-1]), dim = 0))
         
         dec_outs, attns = [], []
         
         dec_state = self.init_state(enc_state)
         
         for embedded_step in embedded.split(1):
-            query = dec_state[0][-1]
+            query = dec_state[0][-1] # dec_state[0] = h, dec_state[1] = c
             attn_c, attn_weights = self.attention(
                 query,
                 memory_bank.permute(1, 0, 2),
@@ -173,9 +176,9 @@ class Decoder(nn.Module):
             dec_out, dec_state = self.rnn(rnn_input, dec_state)
             dec_outs.append(dec_out)
             
-        dec_outs = self.dense(torch.cat(dec_outs, dim=0))
-        attns = torch.cat(dec_outs, dim=0)
-        return dec_outs.permute(1, 0, 2), dec_state , attns
+        dec_outs = self.dense(torch.stack(dec_outs, dim=0))
+        attns = torch.stack(attns, dim=0)
+        return dec_outs, dec_state , attns
     
 
 class Seq2SeqModel(nn.Module):
@@ -214,14 +217,14 @@ class MLPModel(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
     
-    def init_input(enc_outs, enc_lengths):
+    def init_input(self, enc_outs, enc_lengths):
         input = []
         for (id, pos) in enumerate(enc_lengths):
-            input.append = enc_outs[pos][id]
-        return torch.cat(input, dim=0)
+            input.append(enc_outs[pos - 1][id])
+        return torch.stack(input, dim=0)
     
-    def forward(self, enc_outs):
-        input = self.init_input(enc_outs)
+    def forward(self, enc_outs, enc_lengths):
+        input = self.init_input(enc_outs, enc_lengths)
         out = self.fc1(input)
         out = self.dropout1(out)
         out = self.relu(out)
