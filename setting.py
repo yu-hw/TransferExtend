@@ -4,6 +4,7 @@ def get_opt():
     opt['embed_size'] = 64
     opt['hidden_size'] = 128
     opt['dropout'] = 0.3
+    opt['learning_rate'] = 0.001
 
     opt['vocab'] = {}
     opt['vocab']['vocab_size'] = 30000
