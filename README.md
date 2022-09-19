@@ -38,8 +38,8 @@ waiting for update
 
 - [x] decoder force_teaching
 - [x] mlp 是否需要将 src 作为输入，如果需要，如何控制长度
-- [ ] decoder initial hidden state 获取问题
-- [ ] mlp initial input 获取问题
+- [x] decoder initial hidden state 获取问题
+- [x] mlp initial input 获取问题
 - [ ] loss 计算方式
 
 ## 资料补充

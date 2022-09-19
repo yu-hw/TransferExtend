@@ -39,7 +39,7 @@ class StackedLSTM(nn.Module):
         return input, (h_1, c_1)
             
 
-class AdditiveAttention(nn.module):
+class AdditiveAttention(nn.Module):
     def __init__(self, dim, dropout):
         super(AdditiveAttention, self).__init__()
         self.W1 = nn.Linear(dim * 2, dim * 2, bias=False)
@@ -85,6 +85,12 @@ class Encoder(nn.Module):
                            dropout=dropout,
                            bidirectional=True)
     
+    def dataProcess(self, lines):
+        lengths = []
+        for line in lines:
+            lengths.append(len(line))
+        return pad_sequence(lines), lengths
+    
     def forward(self, src):
         """
         Args:
@@ -98,9 +104,7 @@ class Encoder(nn.Module):
         """
         # 使用 pack sequence 方式加速训练
         # 介绍可见 https://chlience.cn/2022/05/09/packed-padded-seqence-and-mask/
-        src_lengths = []
-        for t in src:
-            src_lengths.append(len(t))
+        src, src_lengths = self.dataProcess(src)
         embedded_seq = self.embedding(src)
         packed_seq = pack_padded_sequence(embedded_seq, src_lengths, enforce_sorted=False)
         rnnpacked_seq, hidden_state = self.rnn(packed_seq)
@@ -144,13 +148,13 @@ class Decoder(nn.Module):
             valid_lens (tensor): from encoder, lengths of src
             dec_state: hiddne_state of decoder
         """
-        vocab_end = opt['vocab']['tgt_end']
         vocab_bos = opt['vocab']['tgt_bos']
+        vocab_eos = opt['vocab']['tgt_eos']
         
         tgt_lengths = []
         for t in tgt:
             tgt_lengths.append(len(t))
-        tgt_padded = pad_sequence(tgt, batch_first=True, padding_value=vocab_end).permute(1, 0) # 将 list of tensor 填充为 tensor vec 并修改为 batch_first=False
+        tgt_padded = pad_sequence(tgt, padding_value=vocab_eos).permute(1, 0) # 将 list of tensor 填充为 tensor vec 并修改为 batch_first=False
         bos_tensor = tgt_padded.new_full((1, tgt_padded.size[1]), vocab_bos)
         embedded = self.embedding(torch.cat((bos_tensor, tgt_padded[:-1]), dim = 0))
         
@@ -205,13 +209,16 @@ class MLPModel(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, dropout):
         super(MLPModel, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
-        self.relu = nn.Relu()
+        self.relu = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size, output_size)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
     
-    def init_input(enc_outs):
-        return enc_outs[-1]
+    def init_input(enc_outs, enc_lengths):
+        input = []
+        for (id, pos) in enumerate(enc_lengths):
+            input.append = enc_outs[pos][id]
+        return torch.cat(input, dim=0)
     
     def forward(self, enc_outs):
         input = self.init_input(enc_outs)
@@ -247,7 +254,7 @@ class MultitaskModel(nn.Module):
         src, tgt = data2tensor(batch, self.device)
         enc_outs, lengths, enc_state = self.encoder(src)
         dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, enc_state)
-        mlp_out = self.mlp(enc_outs)
+        mlp_out = self.mlp(enc_outs, lengths)
         
         return dec_outs, mlp_out, attns
     
