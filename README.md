@@ -10,15 +10,20 @@
 ## 文件结构
 
 ```
-├── logs        // 日志
+.
+├── localtools
+│   └── log.py
+├── logs
 │   └── log
-├── model.py    // 模型文件
-├── setting.py  // 训练配置程序
-├── train.py    // 训练程序
-├── vocab.py    // 词表构建程序
-├── utils.py    // 一些共用函数
-├── log.py      // 日志记录程序
-└── README.md   // 说明文件
+├── module
+│   ├── loss.py
+│   ├── model.py
+│   ├── optimizer.py
+│   └── vocab.py
+├── README.md
+├── setting.py
+├── train.py
+└── utils.py
 ```
 
 ## 模型结构

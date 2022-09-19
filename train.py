@@ -1,7 +1,7 @@
-import model
+import module.model as model
 import setting
 import utils
-import optimizer
+import module.optimizer as optimizer
 
 def load_data():
     raise NotImplementedError
