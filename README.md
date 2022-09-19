@@ -7,6 +7,10 @@
 本地开发后提交 pr 到 `main` 分支即可
 注意及时 `rebase` 跟踪进度
 
+## 模型结构
+
+![训练模型](https://github.com/Chlience/TransferExtend/blob/main/pic/train.drawio.svg)
+
 ## 文件结构
 
 ```
@@ -25,10 +29,6 @@
 ├── train.py
 └── utils.py
 ```
-
-## 模型结构
-
-waiting for update
 
 ## 当前任务
 
