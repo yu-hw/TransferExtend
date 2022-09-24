@@ -16,14 +16,20 @@
 ```
 .
 ├── localtools
-│   └── log.py
+│   ├── data_generate_split.py
+│   ├── log.py
+│   └── raw_data_process.py
 ├── logs
 │   └── log
 ├── module
+│   ├── dataloader.py
+│   ├── data.py
 │   ├── loss.py
 │   ├── model.py
 │   ├── optimizer.py
 │   └── vocab.py
+├── pic
+│   └── train.drawio.svg
 ├── README.md
 ├── setting.py
 ├── train.py
