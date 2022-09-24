@@ -1,3 +1,6 @@
+
+import torch
+
 def get_opt():
     opt = {}
 
@@ -5,6 +8,12 @@ def get_opt():
     opt['hidden_size'] = 128
     opt['dropout'] = 0.3
     opt['learning_rate'] = 0.001
+    opt['device'] = torch.device('cpu')
+    opt['EPOCHS'] = 30
+    
+
+    opt['batch_size'] = 64
+    opt['num_steps'] = 200
 
     opt['vocab'] = {}
     opt['vocab']['vocab_size'] = 30000
