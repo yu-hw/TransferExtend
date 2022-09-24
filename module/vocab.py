@@ -13,9 +13,8 @@ class Vocab:
             reserved_tokens = []
         self.counter = count_tokens(tokens)
         self._token_freqs = sorted(self.counter.items(), key=lambda x: x[1], reverse=True)
-        self.idx2token = ['<unk>'] + reserved_tokens
+        self.idx2token = reserved_tokens
         self.token2idx = {token: idx for idx, token in enumerate(self.idx2token)}
-        # self.reserved = self.token2idx.copy()
         for token, freq in self._token_freqs:
             if freq < min_freq or len(self.idx2token) == vocab_size:
                 break
@@ -42,16 +41,20 @@ class Vocab:
         return self._token_freqs
 
 def build_vocab(opt, src, tgt):
-    vocab_size = opt['vocab_size']
-    if opt['share_vocab'] is True:
-        src_vocab = tgt_vocab =  Vocab(src + tgt, vocab_size=vocab_size, reserved_tokens=['<pad>', '<bos>', '<eos>'])
-    else:
-        src_vocab = Vocab(src, vocab_size=vocab_size, reserved_tokens=['<pad>'])
-        tgt_vocab = Vocab(tgt, vocab_size=vocab_size, reserved_tokens=['<pad>', '<bos>'])
+    vocab_size = opt['vocab']['vocab_size']
+    share_vocab = opt['vocab']['share_vocab']
     
-    opt['src_pad'] = src_vocab['<pad>']
-    opt['tgt_bos'] = tgt_vocab['<bos>']
-    opt['tgt_pad'] = tgt_vocab['<pad>']
-    opt['src_vocab_size'] = len(src_vocab.idx2token)
-    opt['tgt_vocab_size'] = len(tgt_vocab.idx2token)
+    if share_vocab is True:
+        src_vocab = tgt_vocab =  Vocab(src + tgt, vocab_size=vocab_size, reserved_tokens=['<unk>', '<pad>', '<bos>'])
+    else:
+        src_vocab = Vocab(src, vocab_size=vocab_size, reserved_tokens=['<unk>', '<pad>'])
+        tgt_vocab = Vocab(tgt, vocab_size=vocab_size, reserved_tokens=['<unk>', '<pad>', '<bos>'])
+    
+    opt['vocab']['src_unk'] = src_vocab['<unk>']
+    opt['vocab']['src_pad'] = src_vocab['<pad>']
+    opt['vocab']['tgt_unk'] = tgt_vocab['<unk>']
+    opt['vocab']['tgt_pad'] = tgt_vocab['<pad>']
+    opt['vocab']['tgt_bos'] = tgt_vocab['<bos>']
+    opt['vocab']['src_vocab_size'] = len(src_vocab.idx2token)
+    opt['vocab']['tgt_vocab_size'] = len(tgt_vocab.idx2token)
     return src_vocab, tgt_vocab
