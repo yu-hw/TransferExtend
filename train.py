@@ -72,8 +72,10 @@ def train_step(opt, net, iterator, optimizer, ctiterion):
         src, tgt, label, src_len, tgt_len = data
         optimizer.zero_grad()
         outs = net(opt, src, tgt, src_len, tgt_len)
-        myloss = ctiterion(outs, tgt[1:])
-        # nn.utils.clip_grad_norm_(utils.net_parameters(net), max_norm=max_norm)
+        l = ctiterion(outs, tgt[1:])
+        l.sum().backward()
+        utils.grad_clipping(net, 1)
+        predict_num_tokens = tgt_len.sum() - len(tgt_len) # 去掉 <bos>
         optimizer.step()
         # 补充一个统计用模块
 
