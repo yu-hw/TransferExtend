@@ -3,21 +3,18 @@ import random
 
 class PreDataSet(torch.utils.data.Dataset):
     def __init__(self, data):
-        if(len(data['source']) != len(data['target']) or len(data['source']) != len(data['label'])):
-            print("the data is not aligned ")
-            raise RuntimeError
-        
         self.source = data['source']
         self.target = data['target']
         self.label = data['label']
+        self.source_length = data['source_length']
+        self.target_length = data['target_length']
         self.len = len(self.source)
-        self.idx = range(self.len)
 
     def __len__(self):
         return self.len
     
     def __getitem__(self, idx):
-        return self.source[self.idx[idx]], self.target[self.idx[idx]], self.label[self.idx[idx]]
+        return self.source[idx], self.target[idx], self.label[idx], self.source_length[idx], self.target_length[idx]
 
 def build_dataloader(opt, data):
     batch_size = opt['batch_size']
