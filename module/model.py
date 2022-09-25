@@ -141,7 +141,7 @@ class Decoder(nn.Module):
             lengths.append(len(line))
         return pad_sequence(lines, padding_value=padding_value), lengths
     
-    def forward(self, opt, tgt, memory_bank, valid_lens, enc_state):
+    def forward(self, opt, tgt, tgt_length, memory_bank, valid_lens, enc_state):
         """
         Args:
             tgt (list of tensor): list of target tensor
@@ -150,12 +150,14 @@ class Decoder(nn.Module):
             valid_lens (tensor): from encoder, lengths of src
             dec_state: hidden_state of decoder
         """
-        vocab_bos = opt['vocab']['tgt_bos']
-        vocab_pad = opt['vocab']['tgt_pad']
+        # vocab_bos = opt['vocab']['tgt_bos']
+        # vocab_pad = opt['vocab']['tgt_pad']
         
-        tgt, tgt_lengths = self.dataProcess(tgt, vocab_pad)
-        bos_tensor = tgt.new_full((1, tgt.shape[1]), vocab_bos)
-        embedded = self.embedding(torch.cat((bos_tensor, tgt[:-1]), dim = 0))
+        # tgt, tgt_lengths = self.dataProcess(tgt, vocab_pad)
+        # bos_tensor = tgt.new_full((1, tgt.shape[1]), vocab_bos)
+        # embedded = self.embedding(torch.cat((bos_tensor, tgt[:-1]), dim = 0))
+        
+        embedded = self.embedding(tgt[:-1])
         
         dec_outs, attns = [], []
         

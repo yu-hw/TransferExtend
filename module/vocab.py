@@ -45,16 +45,17 @@ def build_vocab(opt, src, tgt):
     share_vocab = opt['vocab']['share_vocab']
     
     if share_vocab is True:
-        src_vocab = tgt_vocab =  Vocab(src + tgt, vocab_size=vocab_size, reserved_tokens=['<unk>', '<pad>', '<bos>'])
+        src_vocab = tgt_vocab =  Vocab(src + tgt, vocab_size=vocab_size, reserved_tokens=['<unk>', '<pad>', '<bos>', '<eos>'])
     else:
         src_vocab = Vocab(src, vocab_size=vocab_size, reserved_tokens=['<unk>', '<pad>'])
-        tgt_vocab = Vocab(tgt, vocab_size=vocab_size, reserved_tokens=['<unk>', '<pad>', '<bos>'])
+        tgt_vocab = Vocab(tgt, vocab_size=vocab_size, reserved_tokens=['<unk>', '<pad>', '<bos>', '<eos>'])
     
     opt['vocab']['src_unk'] = src_vocab['<unk>']
     opt['vocab']['src_pad'] = src_vocab['<pad>']
     opt['vocab']['tgt_unk'] = tgt_vocab['<unk>']
     opt['vocab']['tgt_pad'] = tgt_vocab['<pad>']
     opt['vocab']['tgt_bos'] = tgt_vocab['<bos>']
+    opt['vocab']['tgt_eos'] = tgt_vocab['<eos>']
     opt['vocab']['src_vocab_size'] = len(src_vocab.idx2token)
     opt['vocab']['tgt_vocab_size'] = len(tgt_vocab.idx2token)
     return src_vocab, tgt_vocab
