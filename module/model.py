@@ -85,7 +85,7 @@ class Encoder(nn.Module):
                            dropout=dropout,
                            bidirectional=True)
 
-    def forward(self, opt, src, src_lengths):
+    def forward(self, src, src_lengths):
         """
         Args:
             src (list of tensor): list of source tensor
@@ -98,14 +98,13 @@ class Encoder(nn.Module):
         """
         # 使用 pack sequence 方式加速训练
         # 介绍可见 https://chlience.cn/2022/05/09/packed-padded-seqence-and-mask/
-        vocab_pad = opt['vocab']['src_pad']
 
         embedded_seq = self.embedding(src)
         packed_seq = pack_padded_sequence(
             embedded_seq, src_lengths, enforce_sorted=False)
         rnnpacked_seq, hidden_state = self.rnn(packed_seq)
-        memory_bank, lengths = pad_packed_sequence(rnnpacked_seq)
-        return memory_bank, lengths, hidden_state
+        memory_bank, enc_len = pad_packed_sequence(rnnpacked_seq)
+        return memory_bank, enc_len, hidden_state
 
 
 class Decoder(nn.Module):
@@ -141,7 +140,7 @@ class Decoder(nn.Module):
             lengths.append(len(line))
         return pad_sequence(lines, padding_value=padding_value), lengths
 
-    def forward(self, opt, tgt, tgt_length, memory_bank, valid_lens, enc_state):
+    def forward(self, tgt, memory_bank, valid_lens, enc_state):
         """
         Args:
             tgt (list of tensor): list of target tensor
@@ -150,16 +149,12 @@ class Decoder(nn.Module):
             valid_lens (tensor): from encoder, lengths of src
             dec_state: hidden_state of decoder
         """
-        # vocab_bos = opt['vocab']['tgt_bos']
-        # vocab_pad = opt['vocab']['tgt_pad']
-
-        # tgt, tgt_lengths = self.dataProcess(tgt, vocab_pad)
-        # bos_tensor = tgt.new_full((1, tgt.shape[1]), vocab_bos)
-        # embedded = self.embedding(torch.cat((bos_tensor, tgt[:-1]), dim = 0))
-
         # target 包含前导 <bos> 和末尾的 <eos>
         # 使用 tgt[:-1] 来预测 tgt[0:]
         # gtruth[0:] 即 tgt[0:] 中 <pad> 对应预测将被忽略
+        
+        # decoder 仅输出权值 [-inf, inf]
+        # 转化为概率值需要 softmax
 
         embedded = self.embedding(tgt[:-1])
 
@@ -190,7 +185,7 @@ class Seq2SeqModel(nn.Module):
         self.decoder = decoder
         self.device = device
 
-    def forward(self, opt, batch):
+    def forward(self, opt, src, tgt, src_len, tgt_len):
         """
         Args:
             opt (dict): 
@@ -202,11 +197,13 @@ class Seq2SeqModel(nn.Module):
             attns (tensor): attention weights
                 [lens, batch_size, lens]
         """
-        src, tgt = data2tensor(batch, self.device)
-        enc_outs, lengths, enc_state = self.encoder(src)
+        device = opt['device']
+        src = torch.Tensor(src, device=device)
+        tgt = torch.Tensor(tgt, device=device)
+        enc_outs, enc_len, enc_state = self.encoder(src, src_len)
         dec_outs, dec_state, attns = self.decoder(
-            opt, tgt, enc_outs, lengths, enc_state)
-        return dec_outs, attns
+            tgt, enc_outs, enc_len, enc_state)
+        return dec_outs
 
     def validation_step(self, src):
         raise NotImplementedError
@@ -246,6 +243,8 @@ class MultitaskModel(nn.Module):
         self.device = device
 
     def forward(self, opt, batch):
+        """ 类似 seq2seq 模块进行修改 """
+        raise NotImplementedError
         """
         Args:
             opt (dict): 
