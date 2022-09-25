@@ -7,18 +7,20 @@ def get_opt():
     opt['embed_size'] = 64
     opt['hidden_size'] = 128
     opt['dropout'] = 0.3
-    opt['learning_rate'] = 0.001
+    opt['learning_rate'] = 0.001 # Adam
     opt['epoch'] = 30
     opt['num_steps'] = 200
-    opt['batch_size'] = 64
-    opt['shuffle'] = True
     
     opt['data'] = {}
     opt['data']['fault_type'] = "MoveStmt"
+    opt['data']['shuffle'] = True
+    opt['data']['batch_size'] = 64
 
     opt['vocab'] = {}
     opt['vocab']['vocab_size'] = 30000
     opt['vocab']['share_vocab'] = True
+    
+    ###
 
     opt['encoder'] = {}
     opt['encoder']['vocab_size'] = opt['vocab']['vocab_size']

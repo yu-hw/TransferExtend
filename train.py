@@ -123,7 +123,9 @@ def main():
 
     # 7.训练
     print('Start training ...')
-    train_step(opt, model, train_iter, optimizer, ctiterion)
+    epoch = opt['epoch']
+    for i in range(epoch):
+        train_step(opt, model, train_iter, optimizer, ctiterion)
 
     # train + validation
     # valildation 时需要重写 decoder
