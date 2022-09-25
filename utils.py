@@ -42,3 +42,10 @@ def data2tensor(batch, device):
     src = [torch.tensor(example[0], device=device) for example in batch]
     tgt = [torch.tensor(example[1], device=device) for example in batch]
     return src, tgt
+
+
+def truncate_pad(line, length, padding_value):
+    originLen = len(line)
+    if(originLen > length):
+        return line[:length], originLen
+    return line + [padding_value] * (length - originLen), originLen

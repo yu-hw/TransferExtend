@@ -85,13 +85,8 @@ class Encoder(nn.Module):
                            dropout=dropout,
                            bidirectional=True)
     
-    def dataProcess(self, lines, padding_value=0):
-        lengths = []
-        for line in lines:
-            lengths.append(len(line))
-        return pad_sequence(lines, padding_value=padding_value), lengths
     
-    def forward(self, opt, src):
+    def forward(self, opt, src, src_lengths):
         """
         Args:
             src (list of tensor): list of source tensor
@@ -106,7 +101,6 @@ class Encoder(nn.Module):
         # 介绍可见 https://chlience.cn/2022/05/09/packed-padded-seqence-and-mask/
         vocab_pad = opt['vocab']['src_pad']
         
-        src, src_lengths = self.dataProcess(src, vocab_pad)
         embedded_seq = self.embedding(src)
         packed_seq = pack_padded_sequence(embedded_seq, src_lengths, enforce_sorted=False)
         rnnpacked_seq, hidden_state = self.rnn(packed_seq)
@@ -154,7 +148,7 @@ class Decoder(nn.Module):
             memory_bank (tensor): from encoder
                 (lens, batchSize, hiddenSize * 2)
             valid_lens (tensor): from encoder, lengths of src
-            dec_state: hiddne_state of decoder
+            dec_state: hidden_state of decoder
         """
         vocab_bos = opt['vocab']['tgt_bos']
         vocab_pad = opt['vocab']['tgt_pad']

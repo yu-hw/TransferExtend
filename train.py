@@ -33,6 +33,14 @@ def build_vocab(opt, data):
     tgt = data['train']['target'] + data['valid']['target'] + data['test']['target']
     return vocab.build_vocab(opt, src, tgt)
 
+def text2id(data, src_vocab, tgt_vocab):
+    data['train']['source'] = src_vocab[data['train']['source']]
+    data['train']['tatget'] = tgt_vocab[data['train']['target']]
+    data['valid']['source'] = src_vocab[data['valid']['source']]
+    data['valid']['tatget'] = tgt_vocab[data['valid']['target']]
+    data['test']['source'] = src_vocab[data['test']['source']]
+    data['test']['tatget'] = tgt_vocab[data['test']['target']]
+    
 
 def build_iterator(opt, data):
     return datalodaer.build_dataloader(opt, data)
@@ -53,34 +61,54 @@ def build_optimizer(opt, net):
 
 
 def main():
+    print("### Load option")
     opt = setting.get_opt()
-    
     device = opt['device'] = utils.get_device()
     
+    print("### Load data")
     data = load_data(opt)
     
+    print("### Build vocabulary")
     src_vocab, tgt_vocab = build_vocab(opt, data)
     
+    print("### Convert text to id")
+    text2id(data, src_vocab, tgt_vocab)
+    
+    ## 此时 data 是数字形式
+    ## 这里需要将数字形式填充截断到固定长度
+    ## source 使用 opt['vocab']['src_pad']
+    ## target 使用 opt['vocab']['tgt_pad']
+    ## 长度设定为 opt['padding_length']
+    ## 传回的数据形式为：
+    ## data['train', 'valid', 'test']['source', 'target', 'label', 'source_length', 'target_length']
+    
+    print("### Build iterator")
     train_iter = build_iterator(opt, data['train'])
     valid_iter = build_iterator(opt, data['valid'])
     test_iter = build_iterator(opt, data['test'])
+        
+    raise NotImplementedError
     
     model = build_net(opt)
     print("使用的模型为：", model)
     
     parameters = model.parameters()
     print("参数个数为：", utils.count_parameters(model))
-
-    raise NotImplementedError
     
     # 6.优化器、损失函数
-    optimizer = torch.optim.Adam(parameters, lr=0.001)
+    optimizer = build_optimizer(opt, model)
+
+    raise NotImplementedError
+
     loss = torch.nn.CrossEntropyLoss()
 
     # 7.训练
     print('Start training ...')
     model.to(model.device)
     model.train()
+    
+    # train + validation
+    # valildation 时需要重写 decoder
 
 
 if __name__ == '__main__':
