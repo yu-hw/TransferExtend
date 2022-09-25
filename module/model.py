@@ -6,22 +6,23 @@ from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_se
 from torch.nn.functional import softmax
 from utils import masked_softmax, data2tensor
 
+
 class StackedLSTM(nn.Module):
     """
     Implacement of nn.LSTM
     Needed for the decoder, because we do input feeding.
     """
-    
+
     def __init__(self, input_size, hidden_size, num_layers, dropout):
         super(StackedLSTM, self).__init__()
         self.dropout = nn.Dropout(dropout)
         self.num_layers = num_layers
         self.layers = nn.ModuleList()
-        
+
         for _ in range(num_layers):
             self.layers.append(nn.LSTMCell(input_size, hidden_size))
             input_size = hidden_size
-    
+
     def forward(self, input, hidden):
         h_0, c_0 = hidden
         h_1, c_1 = [], []
@@ -32,12 +33,12 @@ class StackedLSTM(nn.Module):
                 input = self.dropout(input)
             h_1 += [h_1_i]
             c_1 += [c_1_i]
-        
+
         h_1 = torch.stack(h_1)
         c_1 = torch.stack(c_1)
-        
+
         return input, (h_1, c_1)
-            
+
 
 class AdditiveAttention(nn.Module):
     def __init__(self, dim, dropout):
@@ -45,8 +46,7 @@ class AdditiveAttention(nn.Module):
         self.W1 = nn.Linear(dim * 2, dim * 2, bias=False)
         self.w2 = nn.Linear(dim * 2, 1, bias=False)
         self.dropout = nn.Dropout(dropout)
-        
-    
+
     def forward(self, h, s, valid_lens):
         """
         Args:
@@ -62,10 +62,10 @@ class AdditiveAttention(nn.Module):
         attention_weights = masked_softmax(scores, valid_lens).unsqueeze(1)
         c = torch.bmm(self.dropout(attention_weights), s)
         return c.squeeze(1), attention_weights.squeeze(1)
-        
+
 
 class Encoder(nn.Module):
-    def __init__(self, vocab_size, embed_size, hidden_size, num_layers, 
+    def __init__(self, vocab_size, embed_size, hidden_size, num_layers,
                  dropout, **kwargs):
         """
         Args:
@@ -84,8 +84,7 @@ class Encoder(nn.Module):
                            num_layers=num_layers,
                            dropout=dropout,
                            bidirectional=True)
-    
-    
+
     def forward(self, opt, src, src_lengths):
         """
         Args:
@@ -100,9 +99,10 @@ class Encoder(nn.Module):
         # 使用 pack sequence 方式加速训练
         # 介绍可见 https://chlience.cn/2022/05/09/packed-padded-seqence-and-mask/
         vocab_pad = opt['vocab']['src_pad']
-        
+
         embedded_seq = self.embedding(src)
-        packed_seq = pack_padded_sequence(embedded_seq, src_lengths, enforce_sorted=False)
+        packed_seq = pack_padded_sequence(
+            embedded_seq, src_lengths, enforce_sorted=False)
         rnnpacked_seq, hidden_state = self.rnn(packed_seq)
         memory_bank, lengths = pad_packed_sequence(rnnpacked_seq)
         return memory_bank, lengths, hidden_state
@@ -121,26 +121,26 @@ class Decoder(nn.Module):
         """
         super(Decoder, self).__init__(**kwargs)
         input_size = embed_size + hidden_size
-        
+
         self.embedding = nn.Embedding(vocab_size, embed_size)
         self.rnn = StackedLSTM(input_size, hidden_size, num_layers, dropout)
         self.attention = AdditiveAttention(hidden_size, dropout)
         self.dense = nn.Linear(hidden_size, vocab_size)
-    
+
     def init_state(self, encoder_hidden):
         def _fix_enc_hidden(hidden):
             # bid = True，从 encoder 继承 hidden_state 需要将正向反向状态拼接
-            hidden = torch.cat([hidden[0:hidden.size(0):2], 
+            hidden = torch.cat([hidden[0:hidden.size(0):2],
                                 hidden[1:hidden.size(0):2]], 2)
             return hidden
         return tuple(_fix_enc_hidden(enc_hid) for enc_hid in encoder_hidden)
-        
+
     def dataProcess(self, lines, padding_value=0):
         lengths = []
         for line in lines:
             lengths.append(len(line))
         return pad_sequence(lines, padding_value=padding_value), lengths
-    
+
     def forward(self, opt, tgt, tgt_length, memory_bank, valid_lens, enc_state):
         """
         Args:
@@ -152,19 +152,23 @@ class Decoder(nn.Module):
         """
         # vocab_bos = opt['vocab']['tgt_bos']
         # vocab_pad = opt['vocab']['tgt_pad']
-        
+
         # tgt, tgt_lengths = self.dataProcess(tgt, vocab_pad)
         # bos_tensor = tgt.new_full((1, tgt.shape[1]), vocab_bos)
         # embedded = self.embedding(torch.cat((bos_tensor, tgt[:-1]), dim = 0))
-        
+
+        # target 包含前导 <bos> 和末尾的 <eos>
+        # 使用 tgt[:-1] 来预测 tgt[0:]
+        # gtruth[0:] 即 tgt[0:] 中 <pad> 对应预测将被忽略
+
         embedded = self.embedding(tgt[:-1])
-        
+
         dec_outs, attns = [], []
-        
+
         dec_state = self.init_state(enc_state)
-        
+
         for embedded_step in embedded.split(1):
-            query = dec_state[0][-1] # dec_state[0] = h, dec_state[1] = c
+            query = dec_state[0][-1]  # dec_state[0] = h, dec_state[1] = c
             attn_c, attn_weights = self.attention(
                 query,
                 memory_bank.permute(1, 0, 2),
@@ -173,11 +177,11 @@ class Decoder(nn.Module):
             rnn_input = torch.cat([embedded_step.squeeze(0), attn_c], dim=1)
             dec_out, dec_state = self.rnn(rnn_input, dec_state)
             dec_outs.append(dec_out)
-            
+
         dec_outs = self.dense(torch.stack(dec_outs, dim=0))
         attns = torch.stack(attns, dim=0)
-        return dec_outs, dec_state , attns
-    
+        return dec_outs, dec_state, attns
+
 
 class Seq2SeqModel(nn.Module):
     def __init__(self, encoder, decoder, device):
@@ -185,7 +189,7 @@ class Seq2SeqModel(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
         self.device = device
-        
+
     def forward(self, opt, batch):
         """
         Args:
@@ -200,9 +204,10 @@ class Seq2SeqModel(nn.Module):
         """
         src, tgt = data2tensor(batch, self.device)
         enc_outs, lengths, enc_state = self.encoder(src)
-        dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, enc_state)
+        dec_outs, dec_state, attns = self.decoder(
+            opt, tgt, enc_outs, lengths, enc_state)
         return dec_outs, attns
-    
+
     def validation_step(self, src):
         raise NotImplementedError
 
@@ -215,13 +220,13 @@ class MLPModel(nn.Module):
         self.fc2 = nn.Linear(hidden_size, output_size)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
-    
+
     def init_input(self, enc_outs, enc_lengths):
         input = []
         for (id, pos) in enumerate(enc_lengths):
             input.append(enc_outs[pos - 1][id])
         return torch.stack(input, dim=0)
-    
+
     def forward(self, enc_outs, enc_lengths):
         input = self.init_input(enc_outs, enc_lengths)
         out = self.fc1(input)
@@ -239,7 +244,7 @@ class MultitaskModel(nn.Module):
         self.decoder = decoder
         self.mlp = mlp
         self.device = device
-    
+
     def forward(self, opt, batch):
         """
         Args:
@@ -255,14 +260,15 @@ class MultitaskModel(nn.Module):
         """
         src, tgt = data2tensor(batch, self.device)
         enc_outs, lengths, enc_state = self.encoder(src)
-        dec_outs, dec_state, attns = self.decoder(opt, tgt, enc_outs, lengths, enc_state)
+        dec_outs, dec_state, attns = self.decoder(
+            opt, tgt, enc_outs, lengths, enc_state)
         mlp_out = self.mlp(enc_outs, lengths)
-        
+
         return dec_outs, mlp_out, attns
-    
+
     def validation_step(self, src):
         raise NotImplementedError
-        
+
 
 def buildEncoder(opt):
     vocab_size = opt['vocab_size']
