@@ -78,7 +78,11 @@ def main():
     text2id(data, src_vocab, tgt_vocab)
 
     # 此时 data 是数字形式
-    # 这里需要将数字形式填充截断到固定长度
+    
+    # 首先需要在 target 前后加上 <bos>, <eos>
+    # 即 opt['vocab']['tgt_bos'], opt['vocab']['tgt_eos']
+    
+    # 然后需要将数字形式填充截断到固定长度
     # source 使用 opt['vocab']['src_pad']
     # target 使用 opt['vocab']['tgt_pad']
     # 长度设定为 opt['padding_length']
