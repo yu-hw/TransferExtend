@@ -1,6 +1,5 @@
 import pickle
 
-
 def read_pkl(filepath):
     with open(filepath, "rb") as f:
         return pickle.load(f)

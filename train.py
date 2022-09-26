@@ -1,15 +1,9 @@
-import os
-import torch
-import pickle
-
-from torch import nn
-from torch.utils import data
-
 import module.model as model
 import module.vocab as vocab
-import module.data as data
+import module.dataload as dataload
+import module.dataprocess as dataprocess
 import module.optimizer as optimizer
-import module.dataloader as datalodaer
+import module.iterator as iterator
 import module.loss as loss
 import setting
 import utils
@@ -26,7 +20,7 @@ import utils
 
 
 def load_data(opt):
-    return data.load_data(opt)
+    return dataload.load_data(opt)
 
 
 def build_vocab(opt, data):
@@ -37,48 +31,14 @@ def build_vocab(opt, data):
     return vocab.build_vocab(opt, src, tgt)
 
 
-def text2id(data, src_vocab, tgt_vocab):
-    data['train']['source'] = src_vocab[data['train']['source']]
-    data['train']['target'] = tgt_vocab[data['train']['target']]
-    data['valid']['source'] = src_vocab[data['valid']['source']]
-    data['valid']['target'] = tgt_vocab[data['valid']['target']]
-    data['test']['source'] = src_vocab[data['test']['source']]
-    data['test']['target'] = tgt_vocab[data['test']['target']]
-
-
-def add_bos_eos(opt, data):
-    [l.append(opt['vocab']['tgt_eos']) for l in data['train']['target']]
-    [l.append(opt['vocab']['tgt_eos']) for l in data['valid']['target']]
-    [l.append(opt['vocab']['tgt_eos']) for l in data['test']['target']]
-
-    [l.insert(0, opt['vocab']['tgt_bos']) for l in data['train']['target']]
-    [l.insert(0, opt['vocab']['tgt_bos']) for l in data['valid']['target']]
-    [l.insert(0, opt['vocab']['tgt_bos']) for l in data['test']['target']]
-
-
-def truncate_pad(data, num_steps, padding_token):
-    if len(data) > num_steps:
-        return data[:num_steps]  # 截断
-    return data + [padding_token] * (num_steps - len(data))  # 填充
-
-
-def align_data(opt, data):
-    num_steps = opt['num_steps']
-    padding_idx = {'source': opt['vocab']['src_pad'], 'target': opt['vocab']['tgt_pad']}
-    workType = ['train', 'valid', 'test']
-    dataType = ['source', 'target']
-    
-    for type0 in workType:
-        for type1 in dataType:
-            data[type0][type1 + "_length"] = []
-            for line in data[type0][type1]:
-                data[type0][type1 + "_length"].append(len(line))
-            data[type0][type1] = [truncate_pad(
-                l, num_steps, padding_idx[type1]) for l in data[type0][type1]]
+def data_process(opt, data):
+    dataprocess.add_bos_eos(opt, data)
+    dataprocess.align_data(opt, data)
+    return
 
 
 def build_iterator(opt, data):
-    return datalodaer.build_dataloader(opt, data)
+    return iterator.build_iterator(opt, data)
 
 
 def build_net(opt):
@@ -131,14 +91,10 @@ def main():
 
     # <update>
     print("### Convert text to id")
-    text2id(data, src_vocab, tgt_vocab)
+    vocab.data_convert(data, src_vocab, tgt_vocab)
 
-    print("### Add bos eos to target")
-    add_bos_eos(opt, data)
-
-    print("### Truncate and data and count valid len")
-    align_data(opt, data)
-    # <update>
+    print("### Add bos, eos and truncate data")
+    data_process(opt, data)
 
     print("### Build iterator")
     train_iter = build_iterator(opt, data['train'])
@@ -161,6 +117,7 @@ def main():
     print('Start training ...')
     epoch = opt['epoch']
     for i in range(epoch):
+        print("Epoch = " + str(i))
         train_step(opt, model, train_iter, optimizer, ctiterion)
 
     # train + validation

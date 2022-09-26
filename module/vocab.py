@@ -59,3 +59,12 @@ def build_vocab(opt, src, tgt):
     opt['vocab']['src_vocab_size'] = len(src_vocab.idx2token)
     opt['vocab']['tgt_vocab_size'] = len(tgt_vocab.idx2token)
     return src_vocab, tgt_vocab
+
+
+def data_convert(data, src_vocab, tgt_vocab):
+    data['train']['source'] = src_vocab[data['train']['source']]
+    data['train']['target'] = tgt_vocab[data['train']['target']]
+    data['valid']['source'] = src_vocab[data['valid']['source']]
+    data['valid']['target'] = tgt_vocab[data['valid']['target']]
+    data['test']['source'] = src_vocab[data['test']['source']]
+    data['test']['target'] = tgt_vocab[data['test']['target']]
