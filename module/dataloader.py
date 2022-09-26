@@ -17,8 +17,8 @@ class PreDataSet(torch.utils.data.Dataset):
         return self.source[idx], self.target[idx], self.label[idx], self.source_length[idx], self.target_length[idx]
 
 def build_dataloader(opt, data):
-    batch_size = opt['batch_size']
-    shuffle = opt['shuffle']
+    batch_size = opt['data']['batch_size']
+    shuffle = opt['data']['shuffle']
     
     dataset = PreDataSet(data)
     return torch.utils.data.DataLoader(dataset=dataset,

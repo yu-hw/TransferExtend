@@ -10,6 +10,7 @@ import module.vocab as vocab
 import module.data as data
 import module.optimizer as optimizer
 import module.dataloader as datalodaer
+import module.loss as loss
 import setting
 import utils
 
@@ -87,17 +88,33 @@ def build_net(opt):
 def build_optimizer(opt, net):
     return optimizer.build_optimizer(opt, net)
 
-# def build_loss():
-#     raise NotImplementedError
-#
-# def train():
-#     raise NotImplementedError
+
+def build_loss(opt):
+    return loss.build_loss_seq2seq(opt)
+
+
+def train_step(opt, net, iterator, optimizer, ctiterion):
+    device = opt['device']
+    
+    model.to(device)
+    model.train()
+    
+    for data in iterator:
+        src, tgt, label, src_len, tgt_len = data
+        optimizer.zero_grad()
+        outs = net(opt, src, tgt, src_len, tgt_len)
+        l = ctiterion(outs, tgt[1:])
+        l.sum().backward()
+        utils.grad_clipping(net, 1)
+        predict_num_tokens = tgt_len.sum() - len(tgt_len) # 去掉 <bos>
+        optimizer.step()
+        # 补充一个统计用模块
 
 
 def main():
     print("### Load option")
     opt = setting.get_opt()
-    device = opt['device'] = utils.get_device()
+    opt['device'] = utils.get_device()
 
     print("### Load data")
     #  加载的pkl数据格式为： data['train'、'valid'、'test']['source'、'target'、‘label’]
@@ -137,6 +154,9 @@ def main():
     print("data数据的key是：", data.keys())
     print("data['train']数据的key是：",data['train'].keys())
 
+    # 此时 data 是数字形式
+    # 首先需要在 target 前后加上 <bos>, <eos>
+    # 即 opt['vocab']['tgt_bos'], opt['vocab']['tgt_eos']
     # 然后需要将数字形式填充截断到固定长度
     # source 使用 opt['vocab']['src_pad']
     # target 使用 opt['vocab']['tgt_pad']
@@ -157,8 +177,7 @@ def main():
         break
 
 
-    raise NotImplementedError
-
+    print("### Build net")
     model = build_net(opt)
     print("使用的模型为：", model)
 
@@ -166,16 +185,15 @@ def main():
     print("参数个数为：", utils.count_parameters(model))
 
     # 6.优化器、损失函数
+    print("### Build optimizer and loss")
     optimizer = build_optimizer(opt, model)
-
-    raise NotImplementedError
-
-    loss = torch.nn.CrossEntropyLoss()
+    ctiterion = build_loss(opt)
 
     # 7.训练
     print('Start training ...')
-    model.to(model.device)
-    model.train()
+    epoch = opt['epoch']
+    for i in range(epoch):
+        train_step(opt, model, train_iter, optimizer, ctiterion)
 
     # train + validation
     # valildation 时需要重写 decoder

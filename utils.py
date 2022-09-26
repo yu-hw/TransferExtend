@@ -49,3 +49,11 @@ def truncate_pad(line, length, padding_value):
     if(originLen > length):
         return line[:length], originLen
     return line + [padding_value] * (length - originLen), originLen
+
+
+def clip_gradients(self, grad_clip_val, model):
+    params = [p for p in model.parameters() if p.requires_grad]
+    norm = torch.sqrt(sum(torch.sum((p.grad ** 2)) for p in params))
+    if norm > grad_clip_val:
+        for param in params:
+            param.grad[:] *= grad_clip_val / norm
