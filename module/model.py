@@ -85,10 +85,11 @@ class Encoder(nn.Module):
                            dropout=dropout,
                            bidirectional=True)
 
-    def forward(self, src, src_lengths):
+    def forward(self, src, src_len):
         """
         Args:
-            src (list of tensor): list of source tensor
+            src (tensor): list of source tensor
+                (len, batch_size)
         Returns:
             memory_bank (tensor):
                 (lens, batchSize, hiddenSize * 2)
@@ -101,7 +102,7 @@ class Encoder(nn.Module):
 
         embedded_seq = self.embedding(src)
         packed_seq = pack_padded_sequence(
-            embedded_seq, src_lengths, enforce_sorted=False)
+            embedded_seq, src_len, enforce_sorted=False)
         rnnpacked_seq, hidden_state = self.rnn(packed_seq)
         memory_bank, enc_len = pad_packed_sequence(rnnpacked_seq)
         return memory_bank, enc_len, hidden_state
@@ -155,7 +156,7 @@ class Decoder(nn.Module):
         
         # decoder 仅输出权值 [-inf, inf]
         # 转化为概率值需要 softmax
-
+        
         embedded = self.embedding(tgt[:-1])
 
         dec_outs, attns = [], []
@@ -188,18 +189,12 @@ class Seq2SeqModel(nn.Module):
     def forward(self, opt, src, tgt, src_len, tgt_len):
         """
         Args:
-            opt (dict): 
-            batch (list): 详见 data2tensor 模块
-
         Returns:
             dec_outs (tensor): raw output of decoder, range in [-inf, inf]
                 (lens, batch_size, vocab_size)
             attns (tensor): attention weights
                 [lens, batch_size, lens]
         """
-        device = opt['device']
-        src = torch.Tensor(src, device=device)
-        tgt = torch.Tensor(tgt, device=device)
         enc_outs, enc_len, enc_state = self.encoder(src, src_len)
         dec_outs, dec_state, attns = self.decoder(
             tgt, enc_outs, enc_len, enc_state)

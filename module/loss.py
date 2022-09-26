@@ -4,7 +4,7 @@ import statistics
     
 def build_loss_seq2seq(opt):
     padding_idx = opt['vocab']['tgt_pad']
-    return nn.CrossEntropyLoss(ignore_index=padding_idx, reduce='none')
+    return nn.CrossEntropyLoss(ignore_index=padding_idx, reduction='none')
 
 
 # class NMTLossCompute(nn.Module):

@@ -23,7 +23,7 @@ def sequence_mask(x, valid_lens, value):
 
 
 def masked_softmax(x, valid_lens):
-    return softmax(sequence_mask(x, valid_lens, -float('inf')))
+    return softmax(sequence_mask(x, valid_lens, -float('inf')), dim=-1)
 
 
 def get_device():
@@ -51,7 +51,7 @@ def truncate_pad(line, length, padding_value):
     return line + [padding_value] * (length - originLen), originLen
 
 
-def clip_gradients(self, grad_clip_val, model):
+def clip_gradients(model, grad_clip_val):
     params = [p for p in model.parameters() if p.requires_grad]
     norm = torch.sqrt(sum(torch.sum((p.grad ** 2)) for p in params))
     if norm > grad_clip_val:
