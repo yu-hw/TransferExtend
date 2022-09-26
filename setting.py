@@ -9,7 +9,6 @@ def get_opt():
     opt['dropout'] = 0.3
     opt['learning_rate'] = 0.001 # Adam
     opt['epoch'] = 10
-    opt['num_steps'] = 200
     
     opt['data'] = {}
     opt['data']['fault_type'] = "MoveStmt"

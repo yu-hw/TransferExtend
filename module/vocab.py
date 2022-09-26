@@ -62,9 +62,8 @@ def build_vocab(opt, src, tgt):
 
 
 def data_convert(data, src_vocab, tgt_vocab):
-    data['train']['source'] = src_vocab[data['train']['source']]
-    data['train']['target'] = tgt_vocab[data['train']['target']]
-    data['valid']['source'] = src_vocab[data['valid']['source']]
-    data['valid']['target'] = tgt_vocab[data['valid']['target']]
-    data['test']['source'] = src_vocab[data['test']['source']]
-    data['test']['target'] = tgt_vocab[data['test']['target']]
+    workType = ['train', 'valid', 'test']
+    dataType = ['source', 'target']
+    for type0 in workType:
+        data[type0]['source'] = src_vocab[data[type0]['source']]
+        data[type0]['target'] = src_vocab[data[type0]['target']]

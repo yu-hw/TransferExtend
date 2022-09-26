@@ -15,7 +15,6 @@ def truncate_pad(data, num_steps, padding_token):
 
 
 def align_data(opt, data):
-    num_steps = opt['num_steps']
     padding_idx = {'source': opt['vocab']['src_pad'], 'target': opt['vocab']['tgt_pad']}
     workType = ['train', 'valid', 'test']
     dataType = ['source', 'target']
@@ -25,5 +24,9 @@ def align_data(opt, data):
             data[type0][type1 + "_length"] = []
             for line in data[type0][type1]:
                 data[type0][type1 + "_length"].append(len(line))
+    
+    for type0 in workType:
+        ll = max(data[type0][type1 + "_length"])
+        for type1 in dataType:
             data[type0][type1] = [truncate_pad(
-                l, num_steps, padding_idx[type1]) for l in data[type0][type1]]
+                line, ll, padding_idx[type1]) for line in data[type0][type1]]

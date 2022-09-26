@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 from torch.nn.functional import softmax
-from utils import masked_softmax, data2tensor
+from utils import masked_softmax
 
 
 class StackedLSTM(nn.Module):
@@ -90,6 +90,8 @@ class Encoder(nn.Module):
         Args:
             src (tensor): list of source tensor
                 (len, batch_size)
+            src_len (tensor):
+                (batch_size)
         Returns:
             memory_bank (tensor):
                 (lens, batchSize, hiddenSize * 2)
