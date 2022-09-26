@@ -46,7 +46,7 @@ def text2id(data, src_vocab, tgt_vocab):
     data['test']['target'] = tgt_vocab[data['test']['target']]
 
 
-def add_bos_eos(data, opt):
+def add_bos_eos(opt, data):
     [l.append(opt['vocab']['tgt_eos']) for l in data['train']['target']]
     [l.append(opt['vocab']['tgt_eos']) for l in data['valid']['target']]
     [l.append(opt['vocab']['tgt_eos']) for l in data['test']['target']]
@@ -62,35 +62,19 @@ def truncate_pad(data, num_steps, padding_token):
     return data + [padding_token] * (num_steps - len(data))  # 填充
 
 
-def align_data(data, num_steps, padding_token):
-    data['train']['source'] = [truncate_pad(
-        l, num_steps, padding_token) for l in data['train']['source']]
-    train_src_valid_len = [(num_steps - l.count(padding_token))
-                           for l in data['train']['source']]
-    data['train']['target'] = [truncate_pad(
-        l, num_steps, padding_token) for l in data['train']['target']]
-    train_tgt_valid_len = [(num_steps - l.count(padding_token))
-                           for l in data['train']['target']]
-
-    data['valid']['source'] = [truncate_pad(
-        l, num_steps, padding_token) for l in data['valid']['source']]
-    valid_src_valid_len = [(num_steps - l.count(padding_token))
-                           for l in data['valid']['source']]
-    data['valid']['target'] = [truncate_pad(
-        l, num_steps, padding_token) for l in data['valid']['target']]
-    valid_tgt_valid_len = [(num_steps - l.count(padding_token))
-                           for l in data['valid']['target']]
-
-    data['test']['source'] = [truncate_pad(
-        l, num_steps, padding_token) for l in data['test']['source']]
-    test_src_valid_len = [(num_steps - l.count(padding_token))
-                          for l in data['test']['source']]
-    data['test']['target'] = [truncate_pad(
-        l, num_steps, padding_token) for l in data['test']['target']]
-    test_tgt_valid_len = [(num_steps - l.count(padding_token))
-                          for l in data['test']['target']]
-
-    return train_src_valid_len, train_tgt_valid_len, valid_src_valid_len, valid_tgt_valid_len, test_src_valid_len, test_tgt_valid_len
+def align_data(opt, data):
+    num_steps = opt['num_steps']
+    padding_idx = {'source': opt['vocab']['src_pad'], 'target': opt['vocab']['tgt_pad']}
+    workType = ['train', 'valid', 'test']
+    dataType = ['source', 'target']
+    
+    for type0 in workType:
+        for type1 in dataType:
+            data[type0][type1 + "_length"] = []
+            for line in data[type0][type1]:
+                data[type0][type1 + "_length"].append(len(line))
+            data[type0][type1] = [truncate_pad(
+                l, num_steps, padding_idx[type1]) for l in data[type0][type1]]
 
 
 def build_iterator(opt, data):
@@ -112,13 +96,14 @@ def build_loss(opt):
 def train_step(opt, net, iterator, optimizer, ctiterion):
     device = opt['device']
     print(device)
-    
+
     net.to(device)
     net.train()
 
     for i, data in enumerate(iterator):
         src, tgt, label, src_len, tgt_len = data
-        src.to(device), tgt.to(device), label.to(device), src_len.to(device), tgt_len.to(device)
+        src.to(device), tgt.to(device), label.to(
+            device), src_len.to(device), tgt_len.to(device)
         src = src.permute(1, 0)
         tgt = tgt.permute(1, 0)
         optimizer.zero_grad()
@@ -144,23 +129,16 @@ def main():
     print("### Build vocabulary")
     src_vocab, tgt_vocab = build_vocab(opt, data)
 
+    # <update>
     print("### Convert text to id")
     text2id(data, src_vocab, tgt_vocab)
 
     print("### Add bos eos to target")
-    add_bos_eos(data, opt)
+    add_bos_eos(opt, data)
 
-    ### <-- update begin -->
     print("### Truncate and data and count valid len")
-    train_src_valid_len, train_tgt_valid_len, valid_src_valid_len, valid_tgt_valid_len, test_src_valid_len, test_tgt_valid_len = align_data(
-        data, opt['num_steps'], src_vocab['<pad>'])
-    data['train']['source_length'] = train_src_valid_len
-    data['train']['target_length'] = train_tgt_valid_len
-    data['valid']['source_length'] = valid_src_valid_len
-    data['valid']['target_length'] = valid_tgt_valid_len
-    data['test']['source_length'] = test_src_valid_len
-    data['test']['target_length'] = test_tgt_valid_len
-    ### <-- update end -->
+    align_data(opt, data)
+    # <update>
 
     print("### Build iterator")
     train_iter = build_iterator(opt, data['train'])
