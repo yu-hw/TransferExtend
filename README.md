@@ -22,8 +22,9 @@
 ├── logs
 │   └── log
 ├── module
-│   ├── dataloader.py
-│   ├── data.py
+│   ├── dataload.py
+│   ├── dataprocess.py
+│   ├── iterator.py
 │   ├── loss.py
 │   ├── model.py
 │   ├── optimizer.py
@@ -31,6 +32,7 @@
 ├── pic
 │   └── train.drawio.svg
 ├── README.md
+├── run.sh
 ├── setting.py
 ├── train.py
 └── utils.py
@@ -51,7 +53,7 @@
 - [x] mlp 是否需要将 src 作为输入，如果需要，如何控制长度
 - [x] decoder initial hidden state 获取问题
 - [x] mlp initial input 获取问题
-- [ ] loss 计算方式
+- [x] loss 计算方式
 
 ## 资料补充
 
