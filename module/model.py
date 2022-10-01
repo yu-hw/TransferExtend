@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch
-from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from utils import masked_softmax
 
 
@@ -44,36 +44,27 @@ class AdditiveAttention(nn.Module):
         self.w2 = nn.Linear(dim * 2, 1, bias=False)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, h, s, valid_lens):
-        """
+    def forward(self, h, s, enc_lens):
+        """Attention Step
+        
         Args:
-            h (tensor): from decoder
-                [batch_size, feature_dim]
-            s (tensor): from encoder
-                [batch_size, len, feature_dim]
+            h (tensor): Decoder arg
+                (batch_size, hidden_size)
+            s (tensor): Encoder outputs
+                (batch_size, len, hidden_size)
         """
         h = h.unsqueeze(1).repeat((1, s.shape[1], 1))
         source = torch.cat((s, h), dim=-1)
         features = torch.tanh(self.W1(source))
         scores = self.w2(features).squeeze(-1)
-        attention_weights = masked_softmax(scores, valid_lens).unsqueeze(1)
+        attention_weights = masked_softmax(scores, enc_lens).unsqueeze(1)
         c = torch.bmm(self.dropout(attention_weights), s)
         return c.squeeze(1), attention_weights.squeeze(1)
-
+   
 
 class Encoder(nn.Module):
     def __init__(self, vocab_size, embed_size, hidden_size, num_layers,
                  dropout, **kwargs):
-        """
-        Args:
-            vocab_size (int): Vocabulary size
-            embed_size (int): Vector dim for each token
-            hidden_size (int): Number of hidden cell for one direction
-            num_layers (int): Number of layers, each layer get last layer's output as input
-            dropout (float): Dropping out units 
-        Addition:
-            as usual, use 'view' to seperate forward and backward
-        """
         super(Encoder, self).__init__(**kwargs)
         self.embedding = nn.Embedding(vocab_size, embed_size)
         self.rnn = nn.LSTM(input_size=embed_size,
@@ -83,70 +74,66 @@ class Encoder(nn.Module):
                            bidirectional=True)
 
     def forward(self, src, src_len):
-        """
+        """Encoder Step
+        
         Args:
-            src (tensor): list of source tensor
+            src (tensor): source
                 (len, batch_size)
-            src_len (tensor):
+            src_len (tensor): source length
                 (batch_size)
         Returns:
-            memory_bank (tensor):
-                (lens, batchSize, hiddenSize * 2)
-            lengths (tensor): lengths of src
-            hidden_state (tensor, tensor):
-                ([numLayers * 2, batchSize, hiddenSize], [numLayers * 2, batchSize, hiddenSize])
+            enc_outs (tensor): Encoder outputs
+                (len, batch_size, hidden_size)
+            enc_lens (tensor): Encoder valid output lengths
+                (batch_size)
+            enc_state (tuple):
+                2 * (numLayers * 2, batch_size, hidden_size)
         """
         # 使用 pack sequence 方式加速训练
         # 介绍可见 https://chlience.cn/2022/05/09/packed-padded-seqence-and-mask/
         embedded_seq = self.embedding(src)
         packed_seq = pack_padded_sequence(
             embedded_seq, src_len, enforce_sorted=False)
-        rnnpacked_seq, hidden_state = self.rnn(packed_seq)
-        memory_bank, enc_len = pad_packed_sequence(rnnpacked_seq)
-        return memory_bank, enc_len, hidden_state
+        rnnpacked_seq, enc_state = self.rnn(packed_seq)
+        enc_outs, enc_lens = pad_packed_sequence(rnnpacked_seq)
+        return enc_outs, enc_lens, enc_state
 
 
 class Decoder(nn.Module):
     def __init__(self, vocab_size, embed_size, hidden_size, num_layers,
                  dropout, **kwargs):
-        """
-        Args:
-            vocab_size (int): Vocabulary size
-            embed_size (int): Vector dim for each token
-            hidden_size (int): Number of hidden cell (for one direction)
-            num_layers (int): Number of layers, each layer get last layer's output as input
-            dropout (float): Dropping out units 
-        """
         super(Decoder, self).__init__(**kwargs)
-        input_size = embed_size + hidden_size
-
         self.embedding = nn.Embedding(vocab_size, embed_size)
+        input_size = embed_size + hidden_size
         self.rnn = StackedLSTM(input_size, hidden_size, num_layers, dropout)
         self.attention = AdditiveAttention(hidden_size, dropout)
         self.dense = nn.Linear(hidden_size, vocab_size)
 
-    def init_state(self, encoder_hidden):
+    def init_state(self, enc_hids):
         def _fix_enc_hidden(hidden):
             # bid = True，从 encoder 继承 hidden_state 需要将正向反向状态拼接
             hidden = torch.cat([hidden[0:hidden.size(0):2],
                                 hidden[1:hidden.size(0):2]], 2)
             return hidden
-        return tuple(_fix_enc_hidden(enc_hid) for enc_hid in encoder_hidden)
+        return tuple(_fix_enc_hidden(enc_hid) for enc_hid in enc_hids)
 
-    def dataProcess(self, lines, padding_value=0):
-        lengths = []
-        for line in lines:
-            lengths.append(len(line))
-        return pad_sequence(lines, padding_value=padding_value), lengths
 
-    def forward(self, tgt, memory_bank, valid_lens, enc_state):
-        """
+    def forward(self, tgt, enc_outs, enc_lens, enc_state):
+        """Decoder Step with Attention
+
         Args:
             tgt (list of tensor): list of target tensor
-            memory_bank (tensor): from encoder
-                (lens, batchSize, hiddenSize * 2)
-            valid_lens (tensor): from encoder, lengths of src
-            dec_state: hidden_state of decoder
+            enc_outs (tensor): Encoder outputs
+                (len, batch_size, hidden_size)
+            enc_lens (tensor): Encoder valid output lengths
+            enc_state (tuple): Encoder hidden state
+
+        Returns:
+            dec_outs (tensor): Decoder outputs
+                (len, batch_size, hidden_size)
+            dec_state (list): Decoder hidden state
+                2 * (num_layer, batch_size, hidden_size)
+            atten (tensor): attention matrix
         """
         # target 包含前导 <bos> 和末尾的 <eos>
         # 使用 tgt[:-1] 来预测 tgt[0:]
@@ -154,19 +141,15 @@ class Decoder(nn.Module):
         
         # decoder 仅输出权值 [-inf, inf]
         # 转化为概率值需要 softmax
-        
-        embedded = self.embedding(tgt[:-1])
-
         dec_outs, attns = [], []
-
+        embedded = self.embedding(tgt[:-1])
         dec_state = self.init_state(enc_state)
-
         for embedded_step in embedded.split(1):
             query = dec_state[0][-1]  # dec_state[0] = h, dec_state[1] = c
             attn_c, attn_weights = self.attention(
                 query,
-                memory_bank.permute(1, 0, 2),
-                valid_lens)
+                enc_outs.permute(1, 0, 2),
+                enc_lens)
             attns.append(attn_weights)
             rnn_input = torch.cat([embedded_step.squeeze(0), attn_c], dim=1)
             dec_out, dec_state = self.rnn(rnn_input, dec_state)
@@ -192,9 +175,9 @@ class Seq2SeqModel(nn.Module):
             attns (tensor): attention weights
                 [lens, batch_size, lens]
         """
-        enc_outs, enc_len, enc_state = self.encoder(src, src_len)
+        enc_outs, enc_lens, enc_state = self.encoder(src, src_len)
         dec_outs, dec_state, attns = self.decoder(
-            tgt, enc_outs, enc_len, enc_state)
+            tgt, enc_outs, enc_lens, enc_state)
         return dec_outs
 
     def validation_step(self, src):
@@ -210,14 +193,33 @@ class MLPModel(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
-    def init_input(self, enc_outs, enc_lengths):
+    def init_input(self, enc_outs, enc_lens):
+        """Got Encoder output as MLP input
+
+        Args:
+            enc_outs (tensor): Encoder output
+            enc_lens (tesor): Encoder valid output lengths
+
+        Returns:
+            tensor: MLP input
+                (batch_size, hidden_size)
+        """
         input = []
-        for (id, pos) in enumerate(enc_lengths):
+        for (id, pos) in enumerate(enc_lens):
             input.append(enc_outs[pos - 1][id])
         return torch.stack(input, dim=0)
 
-    def forward(self, enc_outs, enc_lengths):
-        input = self.init_input(enc_outs, enc_lengths)
+    def forward(self, enc_outs, enc_lens):
+        """MLP step
+
+        Args:
+            enc_outs (tensor): Encoder outputs
+            enc_lens (tensor): Encoder valid output lengths
+
+        Returns:
+            tensor: MLP outputs
+        """
+        input = self.init_input(enc_outs, enc_lens)
         out = self.fc1(input)
         out = self.dropout1(out)
         out = self.relu(out)
@@ -234,22 +236,30 @@ class MultitaskModel(nn.Module):
         self.mlp = mlp
 
     def forward(self, opt, src, tgt, src_len, tgt_len):
-        """
+        """MultitaskModel Train One Step
+
         Args:
-            opt (dict): 
-            batch (list): 详见 data2tensor 模块
+            opt (dict): _description_
+            src (tensor): source
+                (len, batch_size, hidden_size)
+            tgt (tensor): target
+                (len, batch_size, hidden_size)
+            src_len (tensor): source length
+                (batch_size)
+            tgt_len (tensor): target length
+                (batch_size)
 
         Returns:
-            dec_outs (tensor): value in range [-inf, inf]
+            tensor: value in range [-inf, inf]
                 (lens, batch_size, vocab_size)
-            mlp_out (tensor): value in range [-inf, inf] 
+            tensor: value in range [-inf, inf] 
                 (batch_size)
-            attns (tensor): attention weights
+            tensor: attention weights
         """
-        enc_outs, enc_len, enc_state = self.encoder(src, src_len)
+        enc_outs, enc_lens, enc_state = self.encoder(src, src_len)
         dec_outs, dec_state, attns = self.decoder(
-            opt, tgt, enc_outs, enc_len, enc_state)
-        mlp_out = self.mlp(enc_outs, enc_len)
+            opt, tgt, enc_outs, enc_lens, enc_state)
+        mlp_out = self.mlp(enc_outs, enc_lens)
 
         return dec_outs, mlp_out, attns
 

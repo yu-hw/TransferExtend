@@ -1,5 +1,3 @@
-
-
 def add_bos_eos(opt, data):
     bos = opt['vocab']['tgt_bos']
     eos = opt['vocab']['tgt_eos']
@@ -24,9 +22,10 @@ def align_data(opt, data):
             data[type0][type1 + "_length"] = []
             for line in data[type0][type1]:
                 data[type0][type1 + "_length"].append(len(line))
+            print(type0 + " " + type1 + " max_len=" + str(max(data[type0][type1 + "_length"])))
     
     for type0 in workType:
-        ll = max(data[type0][type1 + "_length"])
         for type1 in dataType:
+            ll = max(data[type0][type1 + "_length"])
             data[type0][type1] = [truncate_pad(
                 line, ll, padding_idx[type1]) for line in data[type0][type1]]

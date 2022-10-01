@@ -4,16 +4,17 @@ import torch
 def get_opt():
     opt = {}
 
-    opt['embed_size'] = 64
-    opt['hidden_size'] = 128
+    opt['embed_size'] = 128
+    opt['hidden_size'] = 256
     opt['dropout'] = 0.3
     opt['learning_rate'] = 0.001 # Adam
     opt['epoch'] = 10
+    opt['shard_size'] = 32
     
     opt['data'] = {}
     opt['data']['fault_type'] = "MoveStmt"
     opt['data']['shuffle'] = True
-    opt['data']['batch_size'] = 64
+    opt['data']['batch_size'] = 32
 
     opt['vocab'] = {}
     opt['vocab']['vocab_size'] = 30000

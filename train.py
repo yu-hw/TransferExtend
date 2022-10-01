@@ -5,18 +5,9 @@ import module.dataprocess as dataprocess
 import module.optimizer as optimizer
 import module.iterator as iterator
 import module.loss as loss
+import module.statistics as statistics
 import setting
 import utils
-
-# from d2l import torch as d2l
-
-#  1、train文件中需要将每一个功能都分开在不同的模块文件中 √
-#  2、需要修改数据集，总共有三种数据 两个标签 neg数据中的rank关键字删去，生成 source、target、label三个数据 √
-#  3、需要设置训练集、验证集、测试集。 √
-#  4、整理代码规范 和 生成11个文件中的 train\val\test √
-#  5、制作 train、val、test的数据 迭代器 √
-#  6、写loss函数
-#  7、将数据输入到 模型中，计算损失
 
 
 def load_data(opt):
@@ -50,35 +41,32 @@ def build_optimizer(opt, net):
 
 
 def build_loss(opt):
-    return loss.build_loss_seq2seq(opt)
+    return loss.build_shard_loss(opt)
 
 
 def train_step(opt, net, iterator, optimizer, ctiterion):
     device = opt['device']
-    print(device)
+    print('Training device:' + str(device))
 
     net.to(device)
     net.train()
-
+    
+    epoch_stats = statistics.Statistics()
     for i, data in enumerate(iterator):
         src, tgt, label, src_len, tgt_len = data
         src = src.to(device)
         tgt = tgt.to(device)
         label = label.to(device)
-        src_len = src_len.to(device)
-        tgt_len = tgt_len.to(device)
         src = src.permute(1, 0)
         tgt = tgt.permute(1, 0)
         optimizer.zero_grad()
         outs = net(opt, src, tgt, src_len, tgt_len)
-        gtruth = tgt[1:]
-        l = ctiterion(outs.permute(1, 2, 0), gtruth.permute(1, 0))
-        l.sum().backward()
-        utils.clip_gradients(net, 1)
-        predict_num_tokens = tgt_len.sum() - len(tgt_len)  # 去掉 <bos>
+        batch_stats = ctiterion(outs, tgt)
+        epoch_stats.update(batch_stats)
+        # utils.clip_gradients(net, 1)
         optimizer.step()
-        print("Step = " + str(i) + " " + "loss = " + str(l.sum()))
-        # 补充一个统计用模块
+        if (i + 1) % 50 == 0:
+            print(f"batch: {i + 1:5} | acc={batch_stats.accuracy():.3f} | loss={batch_stats.xent():.3f} | time={epoch_stats.elapsed_time():.1f}s")
 
 
 def main():
@@ -92,7 +80,6 @@ def main():
     print("### Build vocabulary")
     src_vocab, tgt_vocab = build_vocab(opt, data)
 
-    # <update>
     print("### Convert text to id")
     vocab.data_convert(data, src_vocab, tgt_vocab)
 
@@ -106,7 +93,7 @@ def main():
 
     print("### Build net")
     model = build_net(opt)
-    print("使用的模型为：", model)
+    print("模型为：", model)
 
     parameters = model.parameters()
     print("参数个数为：", utils.count_parameters(model))
