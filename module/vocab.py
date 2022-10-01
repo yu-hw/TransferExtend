@@ -65,5 +65,5 @@ def data_convert(data, src_vocab, tgt_vocab):
     workType = ['train', 'valid', 'test']
     dataType = ['source', 'target']
     for type0 in workType:
-        data[type0]['source'] = src_vocab[data[type0]['source']]
-        data[type0]['target'] = src_vocab[data[type0]['target']]
+        for type1 in dataType:
+            data[type0][type1] = src_vocab[data[type0][type1]]
