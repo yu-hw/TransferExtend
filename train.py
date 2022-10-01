@@ -62,8 +62,11 @@ def train_step(opt, net, iterator, optimizer, ctiterion):
 
     for i, data in enumerate(iterator):
         src, tgt, label, src_len, tgt_len = data
-        src.to(device), tgt.to(device), label.to(
-            device), src_len.to(device), tgt_len.to(device)
+        src = src.to(device)
+        tgt = tgt.to(device)
+        label = label.to(device)
+        src_len = src_len.to(device)
+        tgt_len = tgt_len.to(device)
         src = src.permute(1, 0)
         tgt = tgt.permute(1, 0)
         optimizer.zero_grad()

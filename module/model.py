@@ -1,9 +1,6 @@
-from re import M
-from turtle import forward
 import torch.nn as nn
 import torch
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
-from torch.nn.functional import softmax
 from utils import masked_softmax
 
 
@@ -101,7 +98,6 @@ class Encoder(nn.Module):
         """
         # 使用 pack sequence 方式加速训练
         # 介绍可见 https://chlience.cn/2022/05/09/packed-padded-seqence-and-mask/
-
         embedded_seq = self.embedding(src)
         packed_seq = pack_padded_sequence(
             embedded_seq, src_len, enforce_sorted=False)
@@ -182,11 +178,10 @@ class Decoder(nn.Module):
 
 
 class Seq2SeqModel(nn.Module):
-    def __init__(self, encoder, decoder, device):
+    def __init__(self, encoder, decoder):
         super(Seq2SeqModel, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.device = device
 
     def forward(self, opt, src, tgt, src_len, tgt_len):
         """
@@ -232,16 +227,13 @@ class MLPModel(nn.Module):
 
 
 class MultitaskModel(nn.Module):
-    def __init__(self, encoder, decoder, mlp, device):
+    def __init__(self, encoder, decoder, mlp):
         super(MultitaskModel, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.mlp = mlp
-        self.device = device
 
-    def forward(self, opt, batch):
-        """ 类似 seq2seq 模块进行修改 """
-        raise NotImplementedError
+    def forward(self, opt, src, tgt, src_len, tgt_len):
         """
         Args:
             opt (dict): 
@@ -254,11 +246,10 @@ class MultitaskModel(nn.Module):
                 (batch_size)
             attns (tensor): attention weights
         """
-        src, tgt = data2tensor(batch, self.device)
-        enc_outs, lengths, enc_state = self.encoder(src)
+        enc_outs, enc_len, enc_state = self.encoder(src, src_len)
         dec_outs, dec_state, attns = self.decoder(
-            opt, tgt, enc_outs, lengths, enc_state)
-        mlp_out = self.mlp(enc_outs, lengths)
+            opt, tgt, enc_outs, enc_len, enc_state)
+        mlp_out = self.mlp(enc_outs, enc_len)
 
         return dec_outs, mlp_out, attns
 
@@ -293,15 +284,13 @@ def buildMLP(opt):
 
 
 def buildSeq2SeqModel(opt):
-    device = opt['device']
     encoder = buildEncoder(opt['encoder'])
     decoder = buildDecoder(opt['decoder'])
-    return Seq2SeqModel(encoder, decoder, device)
+    return Seq2SeqModel(encoder, decoder)
 
 
 def buildMultitaskModel(opt):
-    device = opt['device']
     encoder = buildEncoder(opt['encoder'])
     decoder = buildDecoder(opt['decoder'])
     mlp = buildMLP(opt['mlp'])
-    return MultitaskModel(encoder, decoder, mlp, device)
+    return MultitaskModel(encoder, decoder, mlp)
