@@ -35,58 +35,58 @@ dataset_pkl = read_pkl(dataset_pkl_path)
 # 一、获得token小于200词的数据集。
 #     1.将negative中的rank
 #     2.原始数据集不变，删去有效字符长度超过200的数据
-# faultType = dataset_pkl.keys()
-# dict_data = {}
-# for type1 in faultType:
+faultType = dataset_pkl.keys()
+dict_data = {}
+for type1 in faultType:
 
-#     data_len1 = len(dataset_pkl[type1]['positive'])
-#     data_len2 = len(dataset_pkl[type1]['negative'])
-#     data_len3 = len(dataset_pkl[type1]['patch'])
-#     data_len4 = len(dataset_pkl[type1]['negative'])
-#     print(type1, "处理前代码片段总量为：", data_len1, data_len2, data_len3, data_len4)
+    data_len1 = len(dataset_pkl[type1]['positive'])
+    data_len2 = len(dataset_pkl[type1]['negative'])
+    data_len3 = len(dataset_pkl[type1]['patch'])
+    data_len4 = len(dataset_pkl[type1]['negative'])
+    print(type1, "处理前代码片段总量为：", data_len1, data_len2, data_len3, data_len4)
 
-#     code_list_pos = []
-#     code_list_neg = []
-#     code_list_pos_pat = []
-#     code_list_neg_pat = []
+    code_list_pos = []
+    code_list_neg = []
+    code_list_pos_pat = []
+    code_list_neg_pat = []
 
-#     for i in range(data_len1):
-#         # 1. 将 negative中的标记都替换掉,构建 neg_patch
-#         data_pos = dataset_pkl[type1]["positive"][i]
-#         data_pos_patch = dataset_pkl[type1]["patch"][i]
-#         data_neg = dataset_pkl[type1]["negative"][i]
-#         data_neg_patch = dataset_pkl[type1]["negative"][i] \
-#             .replace("rank2fixstart", " ").replace("rank2fixend", " ")
+    for i in range(data_len1):
+        # 1. 将 negative中的标记都替换掉,构建 neg_patch
+        data_pos = dataset_pkl[type1]["positive"][i]
+        data_pos_patch = dataset_pkl[type1]["patch"][i]
+        data_neg = dataset_pkl[type1]["negative"][i]
+        data_neg_patch = dataset_pkl[type1]["negative"][i] \
+            .replace("rank2fixstart", " ").replace("rank2fixend", " ")
 
-#         # 2.  再用javalang分词，排除大于200词的 (由于三个文件数据长度不同，为了保持数据对应维度相同，
-#         #        以pos,pos_patch,neg,neg_patch同时为准，四者的长度都小于200时，才加入到新的数据中)
-#         tokens_pos = [token.value for token in javalang.tokenizer.tokenize(data_pos)]
-#         if len(tokens_pos) > 200:
-#             continue
-#         tokens_pos_patch = [token.value for token in javalang.tokenizer.tokenize(data_pos_patch)]
-#         if len(tokens_pos_patch) > 200:
-#             continue
-#         tokens_neg = [token.value for token in javalang.tokenizer.tokenize(data_neg)]
-#         if len(tokens_neg) > 200:
-#             continue
-#         tokens_neg_patch = [token.value for token in javalang.tokenizer.tokenize(data_neg_patch)]
-#         if len(tokens_neg_patch) > 200:
-#             continue
+        # 2.  再用javalang分词，排除大于200词的 (由于三个文件数据长度不同，为了保持数据对应维度相同，
+        #        以pos,pos_patch,neg,neg_patch同时为准，四者的长度都小于200时，才加入到新的数据中)
+        tokens_pos = [token.value for token in javalang.tokenizer.tokenize(data_pos)]
+        if len(tokens_pos) > 200:
+            continue
+        tokens_pos_patch = [token.value for token in javalang.tokenizer.tokenize(data_pos_patch)]
+        if len(tokens_pos_patch) > 200:
+            continue
+        tokens_neg = [token.value for token in javalang.tokenizer.tokenize(data_neg)]
+        if len(tokens_neg) > 200:
+            continue
+        tokens_neg_patch = [token.value for token in javalang.tokenizer.tokenize(data_neg_patch)]
+        if len(tokens_neg_patch) > 200:
+            continue
     
-#         code_list_pos.append(tokens_pos)  # 原始有错误标记的positive
-#         code_list_neg.append(tokens_neg)  # 原始有错误 fl的 negative
-#         code_list_pos_pat.append(tokens_pos_patch)  # 修复后的patch
-#         code_list_neg_pat.append(tokens_neg_patch)  # 没有标记 错误fl的 negative
+        code_list_pos.append(tokens_pos)  # 原始有错误标记的positive
+        code_list_neg.append(tokens_neg)  # 原始有错误 fl的 negative
+        code_list_pos_pat.append(tokens_pos_patch)  # 修复后的patch
+        code_list_neg_pat.append(tokens_neg_patch)  # 没有标记 错误fl的 negative
     
-#     print(type1, "处理后代码片段总量为：", len(code_list_pos),
-#           len(code_list_neg), len(code_list_pos_pat), len(code_list_neg_pat))
+    print(type1, "处理后代码片段总量为：", len(code_list_pos),
+          len(code_list_neg), len(code_list_pos_pat), len(code_list_neg_pat))
 
-#     #  以上得到了具体数据 code_list,接下来组装成pkl即可。
-#     dict_data[type1] = {'positive': code_list_pos, 'negative': code_list_neg,
-#                         'positive_patch': code_list_pos_pat, 'negative_patch': code_list_neg_pat}
+    #  以上得到了具体数据 code_list,接下来组装成pkl即可。
+    dict_data[type1] = {'positive': code_list_pos, 'negative': code_list_neg,
+                        'positive_patch': code_list_pos_pat, 'negative_patch': code_list_neg_pat}
 
-# print(dict_data.keys())
-# write_pkl(dict_data,"../data/dataset_pre.pkl" )
+print(dict_data.keys())
+write_pkl(dict_data,"../data/dataset_pre.pkl" )
 
 
 # 二、制作数据样本，生成 11种错误类型的 11 个文件夹，每个文件夹有三个txt文件，代表 'positive', 'negative', 'patch'
