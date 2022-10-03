@@ -1,3 +1,4 @@
+from numpy import require
 import torch.nn as nn
 import torch
 from . import statistics
@@ -8,11 +9,25 @@ def build_loss_seq2seq(opt):
     return nn.CrossEntropyLoss(ignore_index=padding_idx, reduction='sum')
 
 
+def build_MLP_loss(opt):
+    return nn.CrossEntropyLoss(reduction='sum')
+
+
 def build_shard_loss(opt):
     shard_size = opt['shard_size']
     padding_idx = opt['vocab']['tgt_pad']
     criterion = nn.CrossEntropyLoss(ignore_index=padding_idx, reduction='sum')
     return NMTLossCompute(criterion, shard_size)
+
+
+def build_Multitask_loss(opt):
+    shard_size = opt['shard_size']
+    padding_idx = opt['vocab']['tgt_pad']
+    NMT_weight = opt['NMT_weight']
+    MLP_weight = opt['MLP_weight']
+    loss1 = nn.CrossEntropyLoss(ignore_index=padding_idx, reduction='sum')
+    loss2 = nn.CrossEntropyLoss(reduction='sum')
+    return MultiTaskLossCompute(loss1, shard_size, loss2, NMT_weight, MLP_weight)
 
 
 class NMTLossCompute(nn.Module):
@@ -58,6 +73,66 @@ class NMTLossCompute(nn.Module):
         num_non_padding = non_padding.sum().item()
         return statistics.Statistics(loss.item(), num_non_padding, num_correct)
         
+    @property
+    def padding_idx(self):
+        return self.criterion.ignore_index
+
+
+class MultiTaskLossCompute(nn.Module):
+    def __init__(self, NMT_criterion, shard_size, MLP_criterion, NMT_weight, MLP_weight):
+        super(MultiTaskLossCompute, self).__init__()
+        self.NMT_criterion = NMT_criterion
+        self.shard_size = shard_size
+        self.MLP_criterion = MLP_criterion
+        self.NMT_weight = NMT_weight
+        self.MLP_weight = MLP_weight
+        
+    def _NMT_compute_loss(self, output, target):
+        '''
+        Args:
+			output: (shard_size, batch_size, vocab_size)
+			target: (shard_size, batch_size, 1)
+        '''
+        output = output.view(-1, output.size(2))
+        gtruth = target.contiguous().view(-1)
+        loss = self.NMT_criterion(output, gtruth)
+        stats = self._stats(loss.clone(), output, gtruth, self.NMT_criterion.ignore_index)
+        return loss, stats
+    
+    def _MLP_compute_loss(self, output, target):
+        gtruth = target.contiguous()
+        loss = self.MLP_criterion(output, gtruth)
+        stats = self._stats(loss.clone(), output, gtruth, self.MLP_criterion.ignore_index)
+        return loss, stats
+    
+    def __call__(self, output, target, pred, label):
+        '''
+        Function:
+            cut output and target into pieces
+            and calculate the loss independectly
+            and finally autograd(in shard)
+        '''
+        batch_size = output.shape[1]
+        NMT_stats = statistics.Statistics()
+        MLP_stats = statistics.Statistics()
+        
+        loss, stats = self._MLP_compute_loss(pred, label)
+        loss.div(float(batch_size)).mul(self.MLP_weight).backward(retain_graph=True)
+        MLP_stats.update(stats)
+        
+        for out_c, tgt_c in shard(output, target[1:], self.shard_size):
+            loss_step, stats = self._NMT_compute_loss(out_c, tgt_c)
+            loss_step.div(float(tgt_c.shape[0] * tgt_c.shape[1])).backward()
+            NMT_stats.update(stats)
+        return NMT_stats, MLP_stats
+    
+    def _stats(self, loss, scores, target, padding_idx):
+        pred = scores.max(1)[1]
+        non_padding = target.ne(padding_idx)
+        num_correct = pred.eq(target).masked_select(non_padding).sum().item()
+        num_non_padding = non_padding.sum().item()
+        return statistics.Statistics(loss.item(), num_non_padding, num_correct)
+    
     @property
     def padding_idx(self):
         return self.criterion.ignore_index

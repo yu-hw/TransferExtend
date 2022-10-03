@@ -33,7 +33,8 @@ def build_iterator(opt, data):
 
 
 def build_net(opt):
-    return model.buildSeq2SeqModel(opt)
+    return model.buildMultitaskModel(opt)
+    # return model.buildSeq2SeqModel(opt)
 
 
 def build_optimizer(opt, net):
@@ -41,7 +42,8 @@ def build_optimizer(opt, net):
 
 
 def build_loss(opt):
-    return loss.build_shard_loss(opt)
+    return loss.build_Multitask_loss(opt)
+    # return loss.build_shard_loss(opt)
 
 
 def train_step(opt, net, iterator, optimizer, ctiterion):
@@ -51,7 +53,8 @@ def train_step(opt, net, iterator, optimizer, ctiterion):
     net.to(device)
     net.train()
     
-    epoch_stats = statistics.Statistics()
+    epoch_NMT_stats = statistics.Statistics()
+    epoch_MLP_stats = statistics.Statistics()
     for i, data in enumerate(iterator):
         src, tgt, label, src_len, tgt_len = data
         src = src.to(device)
@@ -60,19 +63,25 @@ def train_step(opt, net, iterator, optimizer, ctiterion):
         src = src.permute(1, 0)
         tgt = tgt.permute(1, 0)
         optimizer.zero_grad()
-        outs = net(opt, src, tgt, src_len, tgt_len)
-        batch_stats = ctiterion(outs, tgt)
-        epoch_stats.update(batch_stats)
+        
+        outs, pred = net(src, tgt, src_len, tgt_len)
+        NMT_stats, MLP_stats = ctiterion(outs, tgt, pred, label)
+        epoch_NMT_stats.update(NMT_stats)
+        epoch_MLP_stats.update(MLP_stats)
         # utils.clip_gradients(net, 1)
         optimizer.step()
         if (i + 1) % 50 == 0:
-            print(f"batch: {i + 1:5} | acc={batch_stats.accuracy():.3f} | loss={batch_stats.xent():.3f} | time={epoch_stats.elapsed_time():.1f}s")
+            print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")
+            
 
 
 def main():
+    # 完成 Validation Step
+    # 完成 MLP 部分合并
     print("### Load option")
     opt = setting.get_opt()
     opt['device'] = utils.get_device()
+    print(opt)
 
     print("### Load data")
     data = load_data(opt)
@@ -87,6 +96,9 @@ def main():
     data_process(opt, data)
 
     print("### Build iterator")
+    print("Num of train examples:" + str(len(data['train'])))
+    print("Num of valid examples:" + str(len(data['valid'])))
+    print("Num of test examples:" + str(len(data['test'])))
     train_iter = build_iterator(opt, data['train'])
     valid_iter = build_iterator(opt, data['valid'])
     test_iter = build_iterator(opt, data['test'])

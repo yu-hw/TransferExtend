@@ -1,6 +1,4 @@
-from re import M
 from torch.utils import data
-import random
 import torch
 
 class PreDataSet(torch.utils.data.Dataset):

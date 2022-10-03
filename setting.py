@@ -10,9 +10,12 @@ def get_opt():
     opt['learning_rate'] = 0.001 # Adam
     opt['epoch'] = 10
     opt['shard_size'] = 32
+    opt['NMT_weight'] = 0.5
+    opt['MLP_weight'] = 0.5
+    
     
     opt['data'] = {}
-    opt['data']['fault_type'] = "MoveStmt"
+    opt['data']['fault_type'] = "MutateConditionalExpr"
     opt['data']['shuffle'] = True
     opt['data']['batch_size'] = 32
 
@@ -39,7 +42,7 @@ def get_opt():
     opt['mlp'] = {}
     opt['mlp']['input_size'] = opt['hidden_size']
     opt['mlp']['hidden_size'] = opt['hidden_size'] // 2
-    opt['mlp']['output_size'] = 1
+    opt['mlp']['output_size'] = 2
     opt['mlp']['dropout'] = opt['dropout']
     
     return opt

@@ -235,7 +235,7 @@ class MultitaskModel(nn.Module):
         self.decoder = decoder
         self.mlp = mlp
 
-    def forward(self, opt, src, tgt, src_len, tgt_len):
+    def forward(self, src, tgt, src_len, tgt_len):
         """MultitaskModel Train One Step
 
         Args:
@@ -258,10 +258,10 @@ class MultitaskModel(nn.Module):
         """
         enc_outs, enc_lens, enc_state = self.encoder(src, src_len)
         dec_outs, dec_state, attns = self.decoder(
-            opt, tgt, enc_outs, enc_lens, enc_state)
+            tgt, enc_outs, enc_lens, enc_state)
         mlp_out = self.mlp(enc_outs, enc_lens)
 
-        return dec_outs, mlp_out, attns
+        return dec_outs, mlp_out
 
     def validation_step(self, src):
         raise NotImplementedError
