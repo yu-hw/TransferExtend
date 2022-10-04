@@ -91,7 +91,8 @@ def validation_step(opt, net, iterator, ctiterion):
         
 
 def main():
-    # 完成 Validation Step
+    # 外部引入训练参数文件
+    
     print("### Load option")
     opt = setting.get_opt()
     opt['device'] = utils.get_device()

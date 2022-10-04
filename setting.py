@@ -8,16 +8,16 @@ def get_opt():
     opt['hidden_size'] = 256
     opt['dropout'] = 0.3
     opt['learning_rate'] = 0.001 # Adam
-    opt['epoch'] = 10
+    opt['epoch'] = 20
     opt['shard_size'] = 32
-    opt['NMT_weight'] = 0.2
-    opt['MLP_weight'] = 0.8
+    opt['NMT_weight'] = 0
+    opt['MLP_weight'] = 1
     opt['max_pred_len'] = 300
     
     opt['data'] = {}
     opt['data']['fault_type'] = "MutateConditionalExpr"
     opt['data']['shuffle'] = True
-    opt['data']['batch_size'] = 32
+    opt['data']['batch_size'] = 16
 
     opt['vocab'] = {}
     opt['vocab']['vocab_size'] = 30000

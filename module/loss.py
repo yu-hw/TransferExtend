@@ -124,7 +124,7 @@ class MultiTaskLossCompute(nn.Module):
         for out_c, tgt_c in shard(output, target[1:], self.shard_size, train):
             loss_step, stats = self._NMT_compute_loss(out_c, tgt_c)
             if(train):
-                loss_step.div(float(tgt_c.shape[0] * tgt_c.shape[1])).backward()
+                loss_step.div(float(tgt_c.shape[0] * tgt_c.shape[1])).mul(self.NMT_weight).backward()
             NMT_stats.update(stats)
         return NMT_stats, MLP_stats
     
