@@ -10,9 +10,9 @@ def get_opt():
     opt['learning_rate'] = 0.001 # Adam
     opt['epoch'] = 10
     opt['shard_size'] = 32
-    opt['NMT_weight'] = 0.5
-    opt['MLP_weight'] = 0.5
-    
+    opt['NMT_weight'] = 0.2
+    opt['MLP_weight'] = 0.8
+    opt['max_pred_len'] = 300
     
     opt['data'] = {}
     opt['data']['fault_type'] = "MutateConditionalExpr"

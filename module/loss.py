@@ -105,7 +105,7 @@ class MultiTaskLossCompute(nn.Module):
         stats = self._stats(loss.clone(), output, gtruth, self.MLP_criterion.ignore_index)
         return loss, stats
     
-    def __call__(self, output, target, pred, label):
+    def __call__(self, output, target, pred, label, train=True):
         '''
         Function:
             cut output and target into pieces
@@ -117,12 +117,14 @@ class MultiTaskLossCompute(nn.Module):
         MLP_stats = statistics.Statistics()
         
         loss, stats = self._MLP_compute_loss(pred, label)
-        loss.div(float(batch_size)).mul(self.MLP_weight).backward(retain_graph=True)
+        if(train):
+            loss.div(float(batch_size)).mul(self.MLP_weight).backward(retain_graph=True)
         MLP_stats.update(stats)
         
-        for out_c, tgt_c in shard(output, target[1:], self.shard_size):
+        for out_c, tgt_c in shard(output, target[1:], self.shard_size, train):
             loss_step, stats = self._NMT_compute_loss(out_c, tgt_c)
-            loss_step.div(float(tgt_c.shape[0] * tgt_c.shape[1])).backward()
+            if(train):
+                loss_step.div(float(tgt_c.shape[0] * tgt_c.shape[1])).backward()
             NMT_stats.update(stats)
         return NMT_stats, MLP_stats
     
@@ -147,9 +149,10 @@ def filter_shard(v, shard_size):
     return v_split
 
 
-def shard(output, target, shard_size):
+def shard(output, target, shard_size, train=True):
     out_split = filter_shard(output, shard_size)
     tgt_split = filter_shard(target, shard_size)
     for p in zip(out_split, tgt_split):
         yield p
-    torch.autograd.backward(torch.split(output, shard_size), [out_chunk.grad for out_chunk in out_split])
+    if(train):
+        torch.autograd.backward(torch.split(output, shard_size), [out_chunk.grad for out_chunk in out_split])

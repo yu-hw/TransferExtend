@@ -109,14 +109,13 @@ class Decoder(nn.Module):
         self.attention = AdditiveAttention(hidden_size, dropout)
         self.dense = nn.Linear(hidden_size, vocab_size)
 
-    def init_state(self, enc_hids):
+    def init_state(self, enc_state):
         def _fix_enc_hidden(hidden):
             # bid = True，从 encoder 继承 hidden_state 需要将正向反向状态拼接
             hidden = torch.cat([hidden[0:hidden.size(0):2],
                                 hidden[1:hidden.size(0):2]], 2)
             return hidden
-        return tuple(_fix_enc_hidden(enc_hid) for enc_hid in enc_hids)
-
+        return tuple(_fix_enc_hidden(enc_hid) for enc_hid in enc_state)
 
     def forward(self, tgt, enc_outs, enc_lens, enc_state):
         """Decoder Step with Attention
@@ -156,6 +155,26 @@ class Decoder(nn.Module):
             dec_outs.append(dec_out)
 
         dec_outs = self.dense(torch.stack(dec_outs, dim=0))
+        attns = torch.stack(attns, dim=0)
+        return dec_outs, dec_state, attns
+    
+    def validation(self, tgt_bos, pred_max_len, enc_outs, enc_lens, enc_state):
+        dec_outs, attns = [], []
+        dec_state = self.init_state(enc_state)
+        last_pred = tgt_bos
+        while(len(dec_outs) < pred_max_len):
+            query = dec_state[0][-1]
+            attn_c, attn_weights = self.attention(
+                query,
+                enc_outs.permute(1, 0, 2),
+                enc_lens)
+            attns.append(attn_weights)
+            rnn_input = torch.cat([self.embedding(last_pred), attn_c], dim=1)
+            dec_out, dec_state = self.rnn(rnn_input, dec_state)
+            dec_outs.append(self.dense(dec_out))
+            last_pred = dec_outs[-1].argmax(-1)
+
+        dec_outs = torch.stack(dec_outs, dim=0)
         attns = torch.stack(attns, dim=0)
         return dec_outs, dec_state, attns
 
@@ -260,11 +279,14 @@ class MultitaskModel(nn.Module):
         dec_outs, dec_state, attns = self.decoder(
             tgt, enc_outs, enc_lens, enc_state)
         mlp_out = self.mlp(enc_outs, enc_lens)
-
         return dec_outs, mlp_out
 
-    def validation_step(self, src):
-        raise NotImplementedError
+    def validation(self, src, src_len, tgt_bos, pred_max_len):
+        enc_outs, enc_lens, enc_state = self.encoder(src, src_len)
+        dec_outs, dec_state, attns = self.decoder.validation(
+            tgt_bos, pred_max_len, enc_outs, enc_lens, enc_state)
+        mlp_out = self.mlp(enc_outs, enc_lens)
+        return dec_outs, mlp_out
 
 
 def buildEncoder(opt):

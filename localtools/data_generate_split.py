@@ -28,42 +28,6 @@ dataset_pre_pkl = read_pkl(dataset_pre_pkl_path)
 faultType = dataset_pre_pkl.keys()
 
 for type1 in faultType:
-    # # 1.路径
-    # pos_source_path = '../data/' + type1 + '/src_token_positive.txt'
-    # pos_target_path = '../data/' + type1 + '/src_token_positive_patch.txt'
-    # neg_source_path = '../data/' + type1 + '/src_token_negative.txt'
-    # neg_target_path = '../data/' + type1 + '/src_token_negative_patch.txt'
-
-    # # 2.读取txt文件转成list
-    # pos_source = []
-    # pos_target = []
-    # neg_source = []
-    # neg_target = []
-
-    # with open(pos_source_path, 'r', encoding='utf-8') as f:
-    #     for line in f:
-    #         line = line.split()
-    #         pos_source.append(line)
-    #     f.close()
-
-    # with open(pos_target_path, 'r', encoding='utf-8') as f:
-    #     for line in f:
-    #         line = line.split()
-    #         pos_target.append(line)
-    #     f.close()
-
-    # with open(neg_source_path, 'r', encoding='utf-8') as f:
-    #     for line in f:
-    #         line = line.split()
-    #         neg_source.append(line)
-    #     f.close()
-
-    # with open(neg_target_path, 'r', encoding='utf-8') as f:
-    #     for line in f:
-    #         line = line.split()
-    #         neg_target.append(line)
-    #     f.close()
-
     # print(len(pos_source), len(pos_target), len(neg_source), len(neg_target))
     source = dataset_pre_pkl[type1]['positive'] + dataset_pre_pkl[type1]['negative']
     target = dataset_pre_pkl[type1]['positive_patch'] + dataset_pre_pkl[type1]['negative_patch']
@@ -77,8 +41,7 @@ for type1 in faultType:
 
     # 1.按照地址划分数据
     index = [i for i in range(len(source))]
-    # random.shuffle(index)
-    # print(type(index), index)
+    random.shuffle(index)
 
     train_scales = 0.8
     val_scales = 0.1

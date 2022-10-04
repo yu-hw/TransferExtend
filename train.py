@@ -49,21 +49,17 @@ def build_loss(opt):
 def train_step(opt, net, iterator, optimizer, ctiterion):
     device = opt['device']
     print('Training device:' + str(device))
-
     net.to(device)
     net.train()
-    
     epoch_NMT_stats = statistics.Statistics()
     epoch_MLP_stats = statistics.Statistics()
+    print("Train example: " + str(len(iterator.dataset)))
     for i, data in enumerate(iterator):
         src, tgt, label, src_len, tgt_len = data
-        src = src.to(device)
-        tgt = tgt.to(device)
+        src = src.to(device).permute(1, 0)
+        tgt = tgt.to(device).permute(1, 0)
         label = label.to(device)
-        src = src.permute(1, 0)
-        tgt = tgt.permute(1, 0)
         optimizer.zero_grad()
-        
         outs, pred = net(src, tgt, src_len, tgt_len)
         NMT_stats, MLP_stats = ctiterion(outs, tgt, pred, label)
         epoch_NMT_stats.update(NMT_stats)
@@ -74,10 +70,28 @@ def train_step(opt, net, iterator, optimizer, ctiterion):
             print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")
             
 
+def validation_step(opt, net, iterator, ctiterion):
+    device = opt['device']
+    print('Validation device:' + str(device))
+    net.to(device)
+    net.eval()
+    epoch_NMT_stats = statistics.Statistics()
+    epoch_MLP_stats = statistics.Statistics()
+    print("Validtion example: " + str(len(iterator.dataset)))
+    for i, data in enumerate(iterator):
+        src, tgt, label, src_len, tgt_len = data
+        src = src.to(device).permute(1, 0)
+        tgt = tgt.to(device).permute(1, 0)
+        label = label.to(device)
+        outs, pred = net.validation(src, src_len, tgt[0], tgt.shape[0] - 1)
+        NMT_stats, MLP_stats = ctiterion(outs, tgt, pred, label, train=False)
+        epoch_NMT_stats.update(NMT_stats)
+        epoch_MLP_stats.update(MLP_stats)
+    print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")        
+        
 
 def main():
     # 完成 Validation Step
-    # 完成 MLP 部分合并
     print("### Load option")
     opt = setting.get_opt()
     opt['device'] = utils.get_device()
@@ -121,6 +135,8 @@ def main():
     for i in range(epoch):
         print("Epoch = " + str(i))
         train_step(opt, model, train_iter, optimizer, ctiterion)
+        validation_step(opt, model, valid_iter, ctiterion)
+    
 
     # train + validation
     # valildation 时需要重写 decoder
