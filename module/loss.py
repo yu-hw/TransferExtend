@@ -14,33 +14,30 @@ def build_MLP_loss(opt):
 
 
 def build_shard_loss(opt):
-    shard_size = opt['shard_size']
     padding_idx = opt['vocab']['tgt_pad']
     criterion = nn.CrossEntropyLoss(ignore_index=padding_idx, reduction='sum')
-    return NMTLossCompute(criterion, shard_size)
+    return NMTLossCompute(criterion)
 
 
 def build_Multitask_loss(opt):
-    shard_size = opt['shard_size']
     padding_idx = opt['vocab']['tgt_pad']
     NMT_weight = opt['NMT_weight']
     MLP_weight = opt['MLP_weight']
     loss1 = nn.CrossEntropyLoss(ignore_index=padding_idx, reduction='sum')
     loss2 = nn.CrossEntropyLoss(reduction='sum')
-    return MultiTaskLossCompute(loss1, shard_size, loss2, NMT_weight, MLP_weight)
+    return MultiTaskLossCompute(loss1, loss2, NMT_weight, MLP_weight)
 
 
 class NMTLossCompute(nn.Module):
-    def __init__(self, criterion, shard_size):
+    def __init__(self, criterion):
         super(NMTLossCompute, self).__init__()
         self.criterion = criterion
-        self.shard_size = shard_size
         
     def _compute_loss(self, output, target):
         '''
         Args:
-			output: (shard_size, batch_size, vocab_size)
-			target: (shard_size, batch_size, 1)
+			output: (len, batch_size, vocab_size)
+			target: (len, batch_size, 1)
         '''
         output = output.view(-1, output.size(2))
         gtruth = target.contiguous().view(-1)
@@ -55,16 +52,10 @@ class NMTLossCompute(nn.Module):
             and calculate the loss independectly
             and finally autograd(in shard)
         '''
+        loss, stats = self._compute_loss(output, target[1:])
+        loss = loss.div(float(stats.n_words))
         
-        batch_size = output.shape[1]
-        batch_stats = statistics.Statistics()
-        
-        for out_c, tgt_c in shard(output, target[1:], self.shard_size):
-            loss_step, stats = self._compute_loss(out_c, tgt_c)
-            loss_step.div(float(batch_size)).backward()
-            # 每一次 backward 都将每个节点对应 loss 的梯度累加，并清除计算图
-            batch_stats.update(stats)
-        return batch_stats
+        return loss, stats
     
     def _stats(self, loss, scores, target):
         pred = scores.max(1)[1]
@@ -79,10 +70,9 @@ class NMTLossCompute(nn.Module):
 
 
 class MultiTaskLossCompute(nn.Module):
-    def __init__(self, NMT_criterion, shard_size, MLP_criterion, NMT_weight, MLP_weight):
+    def __init__(self, NMT_criterion, MLP_criterion, NMT_weight, MLP_weight):
         super(MultiTaskLossCompute, self).__init__()
         self.NMT_criterion = NMT_criterion
-        self.shard_size = shard_size
         self.MLP_criterion = MLP_criterion
         self.NMT_weight = NMT_weight
         self.MLP_weight = MLP_weight
@@ -90,8 +80,8 @@ class MultiTaskLossCompute(nn.Module):
     def _NMT_compute_loss(self, output, target):
         '''
         Args:
-			output: (shard_size, batch_size, vocab_size)
-			target: (shard_size, batch_size, 1)
+			output: (len, batch_size, vocab_size)
+			target: (len, batch_size, 1)
         '''
         output = output.view(-1, output.size(2))
         gtruth = target.contiguous().view(-1)
@@ -108,25 +98,16 @@ class MultiTaskLossCompute(nn.Module):
     def __call__(self, output, target, pred, label, train=True):
         '''
         Function:
-            cut output and target into pieces
-            and calculate the loss independectly
-            and finally autograd(in shard)
+            calculate the loss independectly
         '''
-        batch_size = output.shape[1]
-        NMT_stats = statistics.Statistics()
-        MLP_stats = statistics.Statistics()
+        MLP_loss, MLP_stats = self._MLP_compute_loss(pred, label)
+        NMT_loss, NMT_stats = self._NMT_compute_loss(output, target[1:])
         
-        loss, stats = self._MLP_compute_loss(pred, label)
-        if(train):
-            loss.div(float(batch_size)).mul(self.MLP_weight).backward(retain_graph=True)
-        MLP_stats.update(stats)
+        MLP_loss = MLP_loss.div(float(MLP_stats.n_words))
+        NMT_loss = NMT_loss.div(float(NMT_stats.n_words))
         
-        for out_c, tgt_c in shard(output, target[1:], self.shard_size, train):
-            loss_step, stats = self._NMT_compute_loss(out_c, tgt_c)
-            if(train):
-                loss_step.div(float(tgt_c.shape[0] * tgt_c.shape[1])).mul(self.NMT_weight).backward()
-            NMT_stats.update(stats)
-        return NMT_stats, MLP_stats
+        loss = MLP_loss * self.MLP_weight + NMT_loss * self.NMT_weight
+        return loss, NMT_loss, MLP_loss, NMT_stats, MLP_stats
     
     def _stats(self, loss, scores, target, padding_idx):
         pred = scores.max(1)[1]
@@ -138,21 +119,3 @@ class MultiTaskLossCompute(nn.Module):
     @property
     def padding_idx(self):
         return self.criterion.ignore_index
-
-
-def filter_shard(v, shard_size):
-    v_split = []
-    for v_chunk in torch.split(v, shard_size):
-        v_chunk = v_chunk.data.clone()
-        v_chunk.requires_grad = v.requires_grad
-        v_split.append(v_chunk)
-    return v_split
-
-
-def shard(output, target, shard_size, train=True):
-    out_split = filter_shard(output, shard_size)
-    tgt_split = filter_shard(target, shard_size)
-    for p in zip(out_split, tgt_split):
-        yield p
-    if(train):
-        torch.autograd.backward(torch.split(output, shard_size), [out_chunk.grad for out_chunk in out_split])
