@@ -1,4 +1,3 @@
-from pexpect import ExceptionPexpect
 import module.model as model
 import module.vocab as vocab
 import module.dataload as dataload
@@ -8,6 +7,7 @@ import module.iterator as iterator
 import module.loss as loss
 import module.statistics as statistics
 import utils
+
 import sys
 import json
 
@@ -18,8 +18,7 @@ def load_option():
             return json.load(f)
     except Exception as e:
         print(e)
-        print("Load Option Error")
-        exit(0)
+        raise Exception("Load Option Error")
 
 
 def load_data(opt):
@@ -37,7 +36,6 @@ def build_vocab(opt, data):
 def data_process(opt, data):
     dataprocess.add_bos_eos(opt, data)
     dataprocess.align_data(opt, data)
-    return
 
 
 def build_iterator(opt, data):
@@ -46,7 +44,6 @@ def build_iterator(opt, data):
 
 def build_net(opt):
     return model.buildMultitaskModel(opt)
-    # return model.buildSeq2SeqModel(opt)
 
 
 def build_optimizer(opt, net):
@@ -55,7 +52,6 @@ def build_optimizer(opt, net):
 
 def build_loss(opt):
     return loss.build_Multitask_loss(opt)
-    # return loss.build_shard_loss(opt)
 
 
 def train_step(opt, net, iterator, optimizer, ctiterion):
@@ -81,9 +77,8 @@ def train_step(opt, net, iterator, optimizer, ctiterion):
         
         epoch_NMT_stats.update(NMT_stats)
         epoch_MLP_stats.update(MLP_stats)
-        print(loss, NMT_loss, MLP_loss)
         if (i + 1) % 50 == 0:
-            print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")     
+            print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")
             
 
 def validation_step(opt, net, iterator, ctiterion):
@@ -103,8 +98,8 @@ def validation_step(opt, net, iterator, ctiterion):
         loss, NMT_loss, MLP_loss, NMT_stats, MLP_stats = ctiterion(outs, tgt, pred, label, train=False)
         epoch_NMT_stats.update(NMT_stats)
         epoch_MLP_stats.update(MLP_stats)
-        print(loss, NMT_loss, MLP_loss)
-    print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")        
+    print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")
+        
         
 def main():
     print("### Load option")
