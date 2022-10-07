@@ -1,7 +1,4 @@
-__pycache__/model.cpython-38.pyc
-__pycache__/setting.cpython-38.pyc
-__pycache__/utils.cpython-38.pyc
-data/*
-module/__pycache__/*
-__pycache__/*
-*.out
+__pycache__
+module/__pycache__
+outs
+data
