@@ -2,3 +2,5 @@ __pycache__
 module/__pycache__
 outs
 data
+train-output
+train-setting
