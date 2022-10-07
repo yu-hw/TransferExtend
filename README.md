@@ -19,8 +19,6 @@
 │   ├── data_generate_split.py
 │   ├── log.py
 │   └── raw_data_process.py
-├── logs
-│   └── log
 ├── module
 │   ├── dataload.py
 │   ├── dataprocess.py
@@ -34,7 +32,7 @@
 │   └── train.drawio.svg
 ├── README.md
 ├── run.sh
-├── setting.py
+├── setting.json
 ├── train.py
 └── utils.py
 ```
@@ -55,6 +53,7 @@
 - [x] decoder initial hidden state 获取问题
 - [x] mlp initial input 获取问题
 - [x] loss 计算方式
+- [x] 多训练配置
 
 ## 资料补充
 
