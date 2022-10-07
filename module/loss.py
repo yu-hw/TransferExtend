@@ -48,9 +48,7 @@ class NMTLossCompute(nn.Module):
     def __call__(self, output, target):
         '''
         Function:
-            cut output and target into pieces
-            and calculate the loss independectly
-            and finally autograd(in shard)
+            calculate the loss independectly
         '''
         loss, stats = self._compute_loss(output, target[1:])
         loss = loss.div(float(stats.n_words))

@@ -1,0 +1,39 @@
+{
+    "vocab": {
+        "vocab_size": 30000,
+        "share_vocab": true
+    },
+    "NMT_weight": 0.5,
+    "embed_size": 128,
+    "max_pred_len": 300,
+    "dropout": 0.3,
+    "mlp": {
+        "input_size": 256,
+        "hidden_size": 128,
+        "dropout": 0.3,
+        "output_size": 2
+    },
+    "encoder": {
+        "vocab_size": 30000,
+        "dropout": 0.3,
+        "hidden_size": 128,
+        "num_layers": 2,
+        "embed_size": 128
+    },
+    "epoch": 40,
+    "MLP_weight": 0.5,
+    "decoder": {
+        "vocab_size": 30000,
+        "dropout": 0.3,
+        "hidden_size": 256,
+        "num_layers": 2,
+        "embed_size": 128
+    },
+    "hidden_size": 256,
+    "data": {
+        "fault_type": "MutateDataType",
+        "shuffle": true,
+        "batch_size": 8
+    },
+    "learning_rate": 0.001
+}

@@ -1,3 +1,4 @@
+from pexpect import ExceptionPexpect
 import module.model as model
 import module.vocab as vocab
 import module.dataload as dataload
@@ -6,8 +7,19 @@ import module.optimizer as optimizer
 import module.iterator as iterator
 import module.loss as loss
 import module.statistics as statistics
-import setting
 import utils
+import sys
+import json
+
+def load_option():
+    try:
+        file_name = sys.argv[1]
+        with open(file_name, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(e)
+        print("Load Option Error")
+        exit(0)
 
 
 def load_data(opt):
@@ -71,7 +83,7 @@ def train_step(opt, net, iterator, optimizer, ctiterion):
         epoch_MLP_stats.update(MLP_stats)
         print(loss, NMT_loss, MLP_loss)
         if (i + 1) % 50 == 0:
-            print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")
+            print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")     
             
 
 def validation_step(opt, net, iterator, ctiterion):
@@ -94,12 +106,9 @@ def validation_step(opt, net, iterator, ctiterion):
         print(loss, NMT_loss, MLP_loss)
     print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")        
         
-
 def main():
-    # 外部引入训练参数文件
-    
     print("### Load option")
-    opt = setting.get_opt()
+    opt = load_option()
     opt['device'] = utils.get_device()
     print(opt)
 
@@ -134,7 +143,6 @@ def main():
     print("### Build optimizer and loss")
     optimizer = build_optimizer(opt, model)
     ctiterion = build_loss(opt)
-
     # 7.训练
     print('Start training ...')
     epoch = opt['epoch']
@@ -142,11 +150,6 @@ def main():
         print("Epoch = " + str(i))
         train_step(opt, model, train_iter, optimizer, ctiterion)
         validation_step(opt, model, valid_iter, ctiterion)
-    
-
-    # train + validation
-    # valildation 时需要重写 decoder
-
 
 if __name__ == '__main__':
     main()
