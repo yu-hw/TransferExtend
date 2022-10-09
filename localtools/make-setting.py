@@ -13,6 +13,7 @@ def origin_opt():
     opt['NMT_weight'] = 0.5
     opt['MLP_weight'] = 0.5
     opt['max_pred_len'] = 300
+    opt['batch_size'] = 16
     opt['fault_type'] = "MutateDataType"
     return opt
 
@@ -20,13 +21,11 @@ def process_opt(opt):
     opt['data'] = {}
     opt['data']['fault_type'] = opt['fault_type']
     opt['data']['shuffle'] = True
-    opt['data']['batch_size'] = 8
+    opt['data']['batch_size'] = opt['batch_size']
 
     opt['vocab'] = {}
     opt['vocab']['vocab_size'] = 30000
     opt['vocab']['share_vocab'] = True
-
-    ###
 
     opt['encoder'] = {}
     opt['encoder']['vocab_size'] = opt['vocab']['vocab_size']
@@ -50,20 +49,28 @@ def process_opt(opt):
 
     
 def main():
-    fault_type = []
-    data_path = '/home/LAB/caohl/TransferExtend/data'
-    for root, dirs, files in os.walk(data_path):
-        if 'train.pkl' in files:
-            name = os.path.split(root)[-1]
-            fault_type.append(name)
+    # fault_type = []
+    # data_path = '/home/LAB/caohl/TransferExtend/data'
+    # for root, dirs, files in os.walk(data_path):
+    #     if 'train.pkl' in files:
+    #         name = os.path.split(root)[-1]
+    #         fault_type.append(name)
     
-    json_path = '/home/LAB/caohl/TransferExtend/train-setting'
-    for name in fault_type:
-        opt = origin_opt()
-        opt['fault_type'] = name
-        process_opt(opt)
-        with open(os.path.join(json_path, name + '.json'), 'w') as f:
-            f.write(json.dumps(opt))
+    # json_path = '/home/LAB/caohl/TransferExtend/train-setting'
+    # for name in fault_type:
+    #     opt = origin_opt()
+    #     opt['fault_type'] = name
+    #     process_opt(opt)
+    #     with open(os.path.join(json_path, name + '.json'), 'w') as f:
+    #         f.write(json.dumps(opt))
+    opt = origin_opt()
+    opt['batch_size'] = 100
+    opt['fault_type'] = 'Insert___....'
+    process_opt(opt)
+    with open('json', 'w') as f:
+        f.write(json.dumps(opt))
+    
+    
     
 
 if __name__ == '__main__':
