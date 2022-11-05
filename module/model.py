@@ -1,5 +1,3 @@
-import sqlite3
-from turtle import hideturtle
 import torch.nn as nn
 import torch
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
@@ -100,6 +98,7 @@ class Encoder(nn.Module):
         #     embedded_seq, src_len, enforce_sorted=False)
         # rnnpacked_seq, enc_state = self.rnn(packed_seq)
         # enc_outs, enc_lens = pad_packed_sequence(rnnpacked_seq)
+        # 暂时使用原始方式训练
         
         enc_outs, enc_state = self.rnn(embedded_seq)
         enc_lens = src_len

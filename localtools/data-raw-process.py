@@ -5,18 +5,16 @@ import os
 """
     基于原始数据  dataset.pkl, 产生网络使用的数据集
          输入：dataset_pre.pkl   输出：11个错误类型的3种文件  positive.txt  negative.txt  patch.txt
-             其中 positive.txt 指 代码有错误并标记正确错误的位置 的数据  ==> 用javalang删去大于200词的数据
+             其中 positive.txt 指 代码有错误并标记正确错误的位置 的数据  ==> 用javalang删去大于max_length词的数据
                   negative.txt 指 代码有错误并标记不正确错误位置 的数据  ==> 先删去标记rank，再用java删去
-                  positive_patch.txt 指 代码完全正确  的数据   ==>  用javalang删去大于200词的数据，注意数据量要同步
+                  positive_patch.txt 指 代码完全正确  的数据   ==>  用javalang删去大于max_length词的数据，注意数据量要同步
                   negative_patch.txt
                   
-    ../data/dataset_pre.pkl 文件是，处理 negative标记、词长>200的 最终数据。
+    ../data/dataset_pre.pkl 文件是，处理 negative标记、词长>max_length的 最终数据。
     
     数据集为：【pos,neg,pat】
         变成：【pos(有标记),patch】==> label=1
            【neg(有标记),neg(没有标记)】 ==> label=0
-    
-    
 """
 
 def read_pkl(filepath):
@@ -32,9 +30,11 @@ print("### Reading pkl")
 dataset_pkl_path = '../data/dataset.pkl'
 dataset_pkl = read_pkl(dataset_pkl_path)
 
-# 一、获得token小于200词的数据集。
+# 一、获得token小于max_length词的数据集。
 #     1.将negative中的rank
-#     2.原始数据集不变，删去有效字符长度超过200的数据
+#     2.原始数据集不变，删去有效字符长度超过max_length的数据
+
+max_length = 500
 faultType = dataset_pkl.keys()
 dict_data = {}
 for type1 in faultType:
@@ -58,19 +58,19 @@ for type1 in faultType:
         data_neg_patch = dataset_pkl[type1]["negative"][i] \
             .replace("rank2fixstart", " ").replace("rank2fixend", " ")
 
-        # 2.  再用javalang分词，排除大于200词的 (由于三个文件数据长度不同，为了保持数据对应维度相同，
-        #        以pos,pos_patch,neg,neg_patch同时为准，四者的长度都小于200时，才加入到新的数据中)
+        # 2.  再用javalang分词，排除大于max_length词的 (由于三个文件数据长度不同，为了保持数据对应维度相同，
+        #        以pos,pos_patch,neg,neg_patch同时为准，四者的长度都小于max_length时，才加入到新的数据中)
         tokens_pos = [token.value for token in javalang.tokenizer.tokenize(data_pos)]
-        if len(tokens_pos) > 200:
+        if len(tokens_pos) > max_length:
             continue
         tokens_pos_patch = [token.value for token in javalang.tokenizer.tokenize(data_pos_patch)]
-        if len(tokens_pos_patch) > 200:
+        if len(tokens_pos_patch) > max_length:
             continue
         tokens_neg = [token.value for token in javalang.tokenizer.tokenize(data_neg)]
-        if len(tokens_neg) > 200:
+        if len(tokens_neg) > max_length:
             continue
         tokens_neg_patch = [token.value for token in javalang.tokenizer.tokenize(data_neg_patch)]
-        if len(tokens_neg_patch) > 200:
+        if len(tokens_neg_patch) > max_length:
             continue
     
         code_list_pos.append(tokens_pos)  # 原始有错误标记的positive

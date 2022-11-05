@@ -16,7 +16,7 @@ def origin_opt():
     opt['max_pred_len'] = 300
     opt['batch_size'] = 64
     opt['fault_type'] = "MutateDataType"
-    opt['mlp_layer_size'] = [opt['hidden_size'] * 2, 2]
+    opt['mlp_layer_size'] = [opt['hidden_size'], 2]
     return opt
 
 def process_opt(opt):
@@ -56,6 +56,7 @@ def main():
             name = os.path.split(root)[-1]
             fault_type.append(name)
     
+    os.mkdir
     json_path = '/home/LAB/caohl/TransferExtend/train-setting'
     for name in fault_type:
         opt = origin_opt()

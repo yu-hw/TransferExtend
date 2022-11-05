@@ -6,7 +6,7 @@ import module.optimizer as optimizer
 import module.iterator as iterator
 import module.loss as loss
 import module.statistics as statistics
-import utils
+import module.utils
 
 import sys
 import json
