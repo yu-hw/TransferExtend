@@ -1,6 +1,7 @@
 __pycache__
 module/__pycache__
-outs
 data
-train-output
+data-200
+train-outputs
 train-setting
+archives
