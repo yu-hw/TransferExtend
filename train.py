@@ -123,9 +123,9 @@ def main():
     print("Num of train examples:" + str(len(data['train'])))
     print("Num of valid examples:" + str(len(data['valid'])))
     print("Num of test examples:" + str(len(data['test'])))
-    train_iter = build_iterator(opt, data['train'])
-    valid_iter = build_iterator(opt, data['valid'])
-    test_iter = build_iterator(opt, data['test'])
+    train_iter = build_iterator(opt, data['train']['src'])
+    valid_iter = build_iterator(opt, data['valid']['src'])
+    test_iter = build_iterator(opt, data['test']['src'])
 
     print("### Build net")
     model = build_net(opt)

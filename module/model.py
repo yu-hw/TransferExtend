@@ -1,3 +1,5 @@
+import sqlite3
+from turtle import hideturtle
 import torch.nn as nn
 import torch
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
@@ -91,11 +93,17 @@ class Encoder(nn.Module):
         """
         # 使用 pack sequence 方式加速训练
         # 介绍可见 https://chlience.cn/2022/05/09/packed-padded-seqence-and-mask/
+        
         embedded_seq = self.embedding(src)
-        packed_seq = pack_padded_sequence(
-            embedded_seq, src_len, enforce_sorted=False)
-        rnnpacked_seq, enc_state = self.rnn(packed_seq)
-        enc_outs, enc_lens = pad_packed_sequence(rnnpacked_seq)
+        
+        # packed_seq = pack_padded_sequence(
+        #     embedded_seq, src_len, enforce_sorted=False)
+        # rnnpacked_seq, enc_state = self.rnn(packed_seq)
+        # enc_outs, enc_lens = pad_packed_sequence(rnnpacked_seq)
+        
+        enc_outs, enc_state = self.rnn(embedded_seq)
+        enc_lens = src_len
+        
         return enc_outs, enc_lens, enc_state
 
 
@@ -204,15 +212,16 @@ class Seq2SeqModel(nn.Module):
 
 
 class MLPModel(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, dropout):
+    def __init__(self, layer_size, dropout):
         super(MLPModel, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.relu1 = nn.ReLU()
-        self.dropout1 = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.relu2 = nn.ReLU()
-        self.dropout2 = nn.Dropout(dropout)
-        self.fc3 = nn.Linear(hidden_size, output_size)
+        self.model = nn.Sequential()
+        layer_num = len(layer_size) - 1
+        for i in range(layer_num):
+            self.model.add_module('Linear ' + str(i), nn.Linear(layer_size[i], layer_size[i + 1]))
+            if(i + 1 != layer_num):
+                self.model.add_module('ReLU ' + str(i), nn.ReLU())
+                self.model.add_module('Dropout ' + str(i), nn.Dropout(dropout))
+        
 
     def init_input(self, enc_outs, enc_lens):
         """Got Encoder output as MLP input
@@ -241,13 +250,8 @@ class MLPModel(nn.Module):
             tensor: MLP outputs
         """
         input = self.init_input(enc_outs, enc_lens)
-        out = self.fc1(input)
-        out = self.dropout1(out)
-        out = self.relu1(out)
-        out = self.fc2(out)
-        out = self.relu2(out)
-        out = self.dropout2(out)
-        out = self.fc3(out)
+        out = self.model(input)
+        
         return out
 
 
@@ -312,11 +316,9 @@ def buildDecoder(opt):
 
 
 def buildMLP(opt):
-    input_size = opt['input_size']
-    hidden_size = opt['hidden_size']
-    output_size = opt['output_size']
+    layer_size = opt['layer_size']
     dropout = opt['dropout']
-    return MLPModel(input_size, hidden_size, output_size, dropout)
+    return MLPModel(layer_size, dropout)
 
 
 def buildSeq2SeqModel(opt):
