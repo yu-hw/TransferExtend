@@ -6,7 +6,7 @@ import module.optimizer as optimizer
 import module.iterator as iterator
 import module.loss as loss
 import module.statistics as statistics
-import module.utils
+import module.utils as utils
 
 import sys
 import json
@@ -72,7 +72,7 @@ def train_step(opt, net, iterator, optimizer, ctiterion):
         loss, NMT_loss, MLP_loss, NMT_stats, MLP_stats = ctiterion(outs, tgt, pred, label)
         
         loss.backward()
-        # utils.clip_gradients(net, 1)
+        utils.clip_gradients(net, 1)
         optimizer.step()
         
         epoch_NMT_stats.update(NMT_stats)
@@ -120,12 +120,12 @@ def main():
     data_process(opt, data)
 
     print("### Build iterator")
-    print("Num of train examples:" + str(len(data['train'])))
-    print("Num of valid examples:" + str(len(data['valid'])))
-    print("Num of test examples:" + str(len(data['test'])))
-    train_iter = build_iterator(opt, data['train']['src'])
-    valid_iter = build_iterator(opt, data['valid']['src'])
-    test_iter = build_iterator(opt, data['test']['src'])
+    print("Num of train examples:" + str(len(data['train']['source'])))
+    print("Num of valid examples:" + str(len(data['valid']['source'])))
+    print("Num of test examples:" + str(len(data['test']['source'])))
+    train_iter = build_iterator(opt, data['train'])
+    valid_iter = build_iterator(opt, data['valid'])
+    test_iter = build_iterator(opt, data['test'])
 
     print("### Build net")
     model = build_net(opt)

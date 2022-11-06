@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from utils import masked_softmax
+from module.utils import masked_softmax
 
 
 class StackedLSTM(nn.Module):
