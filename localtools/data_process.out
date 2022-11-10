@@ -1,0 +1,69 @@
+### 读取数据集
+### 获取参数
+### 处理文件
+[MoveStmt]
+MoveStmt length: 7313
+处理后数据量为: 11436
+train num: 9148
+valid   num: 1143
+test  num: 1145
+[InsertNullPointerChecker]
+InsertNullPointerChecker length: 5660
+处理后数据量为: 9587
+train num: 7669
+valid   num: 958
+test  num: 960
+[MutateLiteralExpr]
+MutateLiteralExpr length: 35536
+处理后数据量为: 57994
+train num: 46395
+valid   num: 5799
+test  num: 5800
+[MutateOperators]
+MutateOperators length: 1673
+处理后数据量为: 2694
+train num: 2155
+valid   num: 269
+test  num: 270
+[MutateMethodInvExpr]
+MutateMethodInvExpr length: 198754
+处理后数据量为: 326552
+train num: 261241
+valid   num: 32655
+test  num: 32656
+[MutateVariable]
+MutateVariable length: 29918
+处理后数据量为: 49535
+train num: 39628
+valid   num: 4953
+test  num: 4954
+[MutateDataType]
+MutateDataType length: 3293
+处理后数据量为: 5369
+train num: 4295
+valid   num: 536
+test  num: 538
+[MutateConditionalExpr]
+MutateConditionalExpr length: 31167
+处理后数据量为: 46432
+train num: 37145
+valid   num: 4643
+test  num: 4644
+[MutateReturnStmt]
+MutateReturnStmt length: 12511
+处理后数据量为: 23215
+train num: 18572
+valid   num: 2321
+test  num: 2322
+[RemoveBuggyStmt]
+RemoveBuggyStmt length: 19622
+处理后数据量为: 31424
+train num: 25139
+valid   num: 3142
+test  num: 3143
+[InsertMissedStmt]
+InsertMissedStmt length: 47120
+处理后数据量为: 73534
+train num: 58827
+valid   num: 7353
+test  num: 7354

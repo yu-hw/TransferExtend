@@ -1,4 +1,5 @@
 import pickle
+import os
 
 def read_pkl(filepath):
     with open(filepath, "rb") as f:
@@ -12,11 +13,11 @@ def write_pkl(obj, filepath):
 
 def load_data(opt):
     fault_type = opt['data']['fault_type']
-    root_path = '/home/LAB/caohl/TransferExtend/data/' + fault_type
-
+    data_path = opt['data']['path']
+    
     dataType = ['train', 'valid', 'test']
 
     data = {}
     for type in dataType:
-        data[type] = read_pkl(root_path + '/' + type + '.pkl')
+        data[type] = read_pkl(data_path + '/' + type + '.pkl')
     return data

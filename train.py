@@ -10,6 +10,7 @@ import module.utils as utils
 
 import sys
 import json
+import torch
 
 def load_option():
     try:
@@ -44,6 +45,7 @@ def build_iterator(opt, data):
 
 def build_net(opt):
     return model.buildMultitaskModel(opt)
+    # return model.buildOriginModel(opt)
 
 
 def build_optimizer(opt, net):
@@ -56,50 +58,43 @@ def build_loss(opt):
 
 def train_step(opt, net, iterator, optimizer, ctiterion):
     device = opt['device']
-    print('Training device:' + str(device))
     net.to(device)
     net.train()
-    epoch_NMT_stats = statistics.Statistics()
-    epoch_MLP_stats = statistics.Statistics()
-    print("Train example: " + str(len(iterator.dataset)))
+    nmt_epoch_state = statistics.Statistics()
+    mlp_epoch_state = statistics.Statistics()
     for i, data in enumerate(iterator):
         src, tgt, label, src_len, tgt_len = data
         src = src.to(device).permute(1, 0)
         tgt = tgt.to(device).permute(1, 0)
         label = label.to(device)
+        dec_outs, mlp_outs = net(src, tgt, src_len, tgt_len)
         optimizer.zero_grad()
-        outs, pred = net(src, tgt, src_len, tgt_len)
-        loss, NMT_loss, MLP_loss, NMT_stats, MLP_stats = ctiterion(outs, tgt, pred, label)
-        
+        loss, nmt_loss, mlp_loss, nmt_state, mlp_state= ctiterion(dec_outs, tgt, mlp_outs, label)
         loss.backward()
-        utils.clip_gradients(net, 1)
+        # utils.clip_gradients(net, 1)
         optimizer.step()
-        
-        epoch_NMT_stats.update(NMT_stats)
-        epoch_MLP_stats.update(MLP_stats)
-        if (i + 1) % 50 == 0:
-            print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")
+        nmt_epoch_state.update(nmt_state)
+        mlp_epoch_state.update(mlp_state)
+    print(f"Train | data_num={len(iterator.dataset):6} | time={nmt_epoch_state.elapsed_time():4}s | nmt_acc={nmt_epoch_state.accuracy():.3f} | nmt_loss={nmt_epoch_state.xent():.3f} | mlp_acc={mlp_epoch_state.accuracy():.3f} | mlp_loss={mlp_epoch_state.xent():.3f}")
             
 
 def validation_step(opt, net, iterator, ctiterion):
     device = opt['device']
-    print('Validation device:' + str(device))
     net.to(device)
     net.eval()
-    epoch_NMT_stats = statistics.Statistics()
-    epoch_MLP_stats = statistics.Statistics()
-    print("Validtion example: " + str(len(iterator.dataset)))
+    nmt_epoch_state = statistics.Statistics()
+    mlp_epoch_state = statistics.Statistics()
     for i, data in enumerate(iterator):
         src, tgt, label, src_len, tgt_len = data
         src = src.to(device).permute(1, 0)
         tgt = tgt.to(device).permute(1, 0)
         label = label.to(device)
-        outs, pred = net.validation(src, src_len, tgt[0], tgt.shape[0] - 1)
-        loss, NMT_loss, MLP_loss, NMT_stats, MLP_stats = ctiterion(outs, tgt, pred, label, train=False)
-        epoch_NMT_stats.update(NMT_stats)
-        epoch_MLP_stats.update(MLP_stats)
-    print(f"batch: {i + 1:5} | NMT_acc={epoch_NMT_stats.accuracy():.3f} | NMT_loss={epoch_NMT_stats.xent():.3f} | MLP_acc={epoch_MLP_stats.accuracy():.3f} | MLP_loss={epoch_MLP_stats.xent():.3f} | time={epoch_NMT_stats.elapsed_time():.1f}s")
-        
+        dec_outs, mlp_outs = net(src, tgt, src_len, tgt_len)
+        loss, nmt_loss, mlp_loss, nmt_state, mlp_state= ctiterion(dec_outs, tgt, mlp_outs, label, train=False)
+        nmt_epoch_state.update(nmt_state)
+        mlp_epoch_state.update(mlp_state)
+    print(f"Valid | data_num={len(iterator.dataset):6} | time={nmt_epoch_state.elapsed_time():4}s | nmt_acc={nmt_epoch_state.accuracy():.3f} | nmt_loss={nmt_epoch_state.xent():.3f} | mlp_acc={mlp_epoch_state.accuracy():.3f} | mlp_loss={mlp_epoch_state.xent():.3f}")
+   
         
 def main():
     print("### Load option")
@@ -112,6 +107,8 @@ def main():
 
     print("### Build vocabulary")
     src_vocab, tgt_vocab = build_vocab(opt, data)
+    print(f"source vocab size = {len(src_vocab)}")
+    print(f"target vocab size = {len(tgt_vocab)}")
 
     print("### Convert text to id")
     vocab.data_convert(data, src_vocab, tgt_vocab)
@@ -128,23 +125,24 @@ def main():
     test_iter = build_iterator(opt, data['test'])
 
     print("### Build net")
-    model = build_net(opt)
-    print("模型为：", model)
+    net = build_net(opt)
+    print("模型为：", net)
 
-    parameters = model.parameters()
-    print("参数个数为：", utils.count_parameters(model))
+    parameters = net.parameters()
+    print("参数个数为：", utils.count_parameters(net))
 
     # 6.优化器、损失函数
     print("### Build optimizer and loss")
-    optimizer = build_optimizer(opt, model)
+    optimizer = build_optimizer(opt, net)
     ctiterion = build_loss(opt)
     # 7.训练
     print('Start training ...')
     epoch = opt['epoch']
     for i in range(epoch):
-        print("Epoch = " + str(i))
-        train_step(opt, model, train_iter, optimizer, ctiterion)
-        validation_step(opt, model, valid_iter, ctiterion)
+        print("[Epoch " + str(i) + '/' + str(epoch) + ']')
+        train_step(opt, net, train_iter, optimizer, ctiterion)
+        validation_step(opt, net, valid_iter, ctiterion)
+    
 
 if __name__ == '__main__':
     main()

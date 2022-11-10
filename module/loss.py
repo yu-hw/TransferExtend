@@ -10,7 +10,8 @@ def build_loss_seq2seq(opt):
 
 
 def build_MLP_loss(opt):
-    return nn.CrossEntropyLoss(reduction='sum')
+    # return nn.CrossEntropyLoss(reduction='sum')
+    return nn.CrossEntropyLoss()
 
 
 def build_shard_loss(opt):

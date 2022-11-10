@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from module.utils import masked_softmax
+import torch.nn.functional as F
 
 
 class StackedLSTM(nn.Module):
@@ -93,16 +94,12 @@ class Encoder(nn.Module):
         # 介绍可见 https://chlience.cn/2022/05/09/packed-padded-seqence-and-mask/
         
         embedded_seq = self.embedding(src)
+        packed_seq = pack_padded_sequence(
+            embedded_seq, src_len, enforce_sorted=False)
+        rnnpacked_seq, enc_state = self.rnn(packed_seq)
+        enc_outs, enc_lens = pad_packed_sequence(rnnpacked_seq)
         
-        # packed_seq = pack_padded_sequence(
-        #     embedded_seq, src_len, enforce_sorted=False)
-        # rnnpacked_seq, enc_state = self.rnn(packed_seq)
-        # enc_outs, enc_lens = pad_packed_sequence(rnnpacked_seq)
-        # 暂时使用原始方式训练
-        
-        enc_outs, enc_state = self.rnn(embedded_seq)
-        enc_lens = src_len
-        
+        # enc_outs, enc_state = self.rnn(embedded_seq)
         return enc_outs, enc_lens, enc_state
 
 
@@ -221,7 +218,6 @@ class MLPModel(nn.Module):
                 self.model.add_module('ReLU ' + str(i), nn.ReLU())
                 self.model.add_module('Dropout ' + str(i), nn.Dropout(dropout))
         
-
     def init_input(self, enc_outs, enc_lens):
         """Got Encoder output as MLP input
 
@@ -233,10 +229,8 @@ class MLPModel(nn.Module):
             tensor: MLP input
                 (batch_size, hidden_size)
         """
-        input = []
-        for (id, pos) in enumerate(enc_lens):
-            input.append(enc_outs[pos - 1][id])
-        return torch.stack(input, dim=0)
+        enc_outs = enc_outs.permute(1, 2, 0)
+        return F.max_pool1d(enc_outs, enc_outs.size(2)).squeeze(2)
 
     def forward(self, enc_outs, enc_lens):
         """MLP step
@@ -250,7 +244,6 @@ class MLPModel(nn.Module):
         """
         input = self.init_input(enc_outs, enc_lens)
         out = self.model(input)
-        
         return out
 
 
@@ -294,6 +287,37 @@ class MultitaskModel(nn.Module):
             tgt_bos, pred_max_len, enc_outs, enc_lens, enc_state)
         mlp_out = self.mlp(enc_outs, enc_lens)
         return dec_outs, mlp_out
+    
+
+class OriginModel(nn.Module):
+    def __init__(self, encoder, mlp):
+        super(OriginModel, self).__init__()
+        self.encoder = encoder
+        self.mlp = mlp
+
+    def forward(self, src, src_len):
+        """MultitaskModel Train One Step
+
+        Args:
+            opt (dict): _description_
+            src (tensor): source
+                (len, batch_size, hidden_size)
+            src_len (tensor): source length
+                (batch_size)
+
+        Returns:
+            tensor: value in range [-inf, inf] 
+                (batch_size)
+            tensor: attention weights
+        """
+        enc_outs, enc_lens, enc_state = self.encoder(src, src_len)
+        mlp_out = self.mlp(enc_outs, enc_lens)
+        return mlp_out
+
+    def validation(self, src, src_len, tgt_bos, pred_max_len):
+        enc_outs, enc_lens, enc_state = self.encoder(src, src_len)
+        mlp_out = self.mlp(enc_outs, enc_lens)
+        return mlp_out
 
 
 def buildEncoder(opt):
@@ -321,13 +345,24 @@ def buildMLP(opt):
 
 
 def buildSeq2SeqModel(opt):
+    opt['encoder']['vocab_size'] = opt['vocab']['src_vocab_size']
+    opt['decoder']['vocab_size'] = opt['vocab']['tgt_vocab_size']
     encoder = buildEncoder(opt['encoder'])
     decoder = buildDecoder(opt['decoder'])
     return Seq2SeqModel(encoder, decoder)
 
 
 def buildMultitaskModel(opt):
+    opt['encoder']['vocab_size'] = opt['vocab']['src_vocab_size']
+    opt['decoder']['vocab_size'] = opt['vocab']['tgt_vocab_size']
     encoder = buildEncoder(opt['encoder'])
     decoder = buildDecoder(opt['decoder'])
     mlp = buildMLP(opt['mlp'])
     return MultitaskModel(encoder, decoder, mlp)
+
+
+def buildOriginModel(opt):
+    opt['encoder']['vocab_size'] = opt['vocab']['src_vocab_size']
+    encoder = buildEncoder(opt['encoder'])
+    mlp = buildMLP(opt['mlp'])
+    return OriginModel(encoder, mlp)
