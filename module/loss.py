@@ -1,7 +1,6 @@
 from numpy import require
 import torch.nn as nn
-import torch
-from . import statistics
+import statistics
 
 
 def build_loss_seq2seq(opt):
@@ -10,8 +9,7 @@ def build_loss_seq2seq(opt):
 
 
 def build_MLP_loss(opt):
-    # return nn.CrossEntropyLoss(reduction='sum')
-    return nn.CrossEntropyLoss()
+    return nn.CrossEntropyLoss(reduction='sum')
 
 
 def build_shard_loss(opt):
