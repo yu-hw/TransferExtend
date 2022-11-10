@@ -15,10 +15,13 @@
 
 ```
 .
+├── data
 ├── localtools
-│   ├── data_generate_split.py
-│   ├── log.py
-│   └── raw_data_process.py
+│   ├── data_process.out
+│   ├── data_process.py
+│   ├── make-setting.py
+│   ├── run.py
+│   └── run.sh
 ├── module
 │   ├── dataload.py
 │   ├── dataprocess.py
@@ -27,14 +30,12 @@
 │   ├── model.py
 │   ├── optimizer.py
 │   ├── statistics.py
+│   ├── utils.py
 │   └── vocab.py
 ├── pic
 │   └── train.drawio.svg
 ├── README.md
-├── run.sh
-├── setting.json
 ├── train.py
-└── utils.py
 ```
 
 ## 当前任务
@@ -45,6 +46,8 @@
 - [x] 完成 MLP 模型构建
 - [x] 合并 encoder-decoder 和 MLP 模型（multitask）
 - [x] 测试 multitask 模型
+- [ ] diff origin
+  - [ ] 查看 diff 后如何截断数据
 
 ## 当前问题
 

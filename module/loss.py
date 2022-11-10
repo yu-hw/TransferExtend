@@ -1,6 +1,6 @@
 from numpy import require
 import torch.nn as nn
-import statistics
+from . import statistics
 
 
 def build_loss_seq2seq(opt):

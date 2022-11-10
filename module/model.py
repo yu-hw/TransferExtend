@@ -162,18 +162,19 @@ class Decoder(nn.Module):
         attns = torch.stack(attns, dim=0)
         return dec_outs, dec_state, attns
     
-    def validation(self, tgt_bos, pred_max_len, enc_outs, enc_lens, enc_state):
+    def validation(self, tgt, pred_max_len, enc_outs, enc_lens, enc_state):
         dec_outs, attns = [], []
+        last_pred = tgt[0]
         dec_state = self.init_state(enc_state)
-        last_pred = tgt_bos
         while(len(dec_outs) < pred_max_len):
+            embedded_step = self.embedding(last_pred)
             query = dec_state[0][-1]
             attn_c, attn_weights = self.attention(
                 query,
                 enc_outs.permute(1, 0, 2),
                 enc_lens)
             attns.append(attn_weights)
-            rnn_input = torch.cat([self.embedding(last_pred), attn_c], dim=1)
+            rnn_input = torch.cat([embedded_step, attn_c], dim=1)
             dec_out, dec_state = self.rnn(rnn_input, dec_state)
             dec_outs.append(self.dense(dec_out))
             last_pred = dec_outs[-1].argmax(-1)
@@ -281,10 +282,10 @@ class MultitaskModel(nn.Module):
         mlp_out = self.mlp(enc_outs, enc_lens)
         return dec_outs, mlp_out
 
-    def validation(self, src, src_len, tgt_bos, pred_max_len):
+    def validation(self, src, src_len, tgt, pred_max_len):
         enc_outs, enc_lens, enc_state = self.encoder(src, src_len)
         dec_outs, dec_state, attns = self.decoder.validation(
-            tgt_bos, pred_max_len, enc_outs, enc_lens, enc_state)
+            tgt, pred_max_len, enc_outs, enc_lens, enc_state)
         mlp_out = self.mlp(enc_outs, enc_lens)
         return dec_outs, mlp_out
     

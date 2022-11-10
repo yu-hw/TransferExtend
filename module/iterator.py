@@ -5,7 +5,7 @@ class PreDataSet(torch.utils.data.Dataset):
     def __init__(self, data):
         self.source = torch.tensor(data['source'])
         self.target = torch.tensor(data['target'])
-        self.label = torch.tensor(data['label'])
+        self.label  = torch.tensor(data['label'])
         self.source_length = torch.tensor(data['source_length'])
         self.target_length = torch.tensor(data['target_length'])
         self.len = len(self.source)

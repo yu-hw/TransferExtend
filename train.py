@@ -10,7 +10,6 @@ import module.utils as utils
 
 import sys
 import json
-import torch
 
 def load_option():
     try:
@@ -75,7 +74,7 @@ def train_step(opt, net, iterator, optimizer, ctiterion):
         optimizer.step()
         nmt_epoch_state.update(nmt_state)
         mlp_epoch_state.update(mlp_state)
-    print(f"Train | data_num={len(iterator.dataset):6} | time={nmt_epoch_state.elapsed_time():4}s | nmt_acc={nmt_epoch_state.accuracy():.3f} | nmt_loss={nmt_epoch_state.xent():.3f} | mlp_acc={mlp_epoch_state.accuracy():.3f} | mlp_loss={mlp_epoch_state.xent():.3f}")
+    print(f"Train | data_num={len(iterator.dataset):6} | time={nmt_epoch_state.elapsed_time():4.1}s | nmt_acc={nmt_epoch_state.accuracy():.3f} | nmt_loss={nmt_epoch_state.xent():.3f} | mlp_acc={mlp_epoch_state.accuracy():.3f} | mlp_loss={mlp_epoch_state.xent():.3f}")
             
 
 def validation_step(opt, net, iterator, ctiterion):
@@ -89,13 +88,13 @@ def validation_step(opt, net, iterator, ctiterion):
         src = src.to(device).permute(1, 0)
         tgt = tgt.to(device).permute(1, 0)
         label = label.to(device)
-        dec_outs, mlp_outs = net(src, tgt, src_len, tgt_len)
-        loss, nmt_loss, mlp_loss, nmt_state, mlp_state= ctiterion(dec_outs, tgt, mlp_outs, label, train=False)
+        dec_outs, mlp_outs = net.validation(src, src_len, tgt, tgt.shape[0] - 1)
+        loss, nmt_loss, mlp_loss, nmt_state, mlp_state = ctiterion(dec_outs, tgt, mlp_outs, label, train=False)
         nmt_epoch_state.update(nmt_state)
         mlp_epoch_state.update(mlp_state)
-    print(f"Valid | data_num={len(iterator.dataset):6} | time={nmt_epoch_state.elapsed_time():4}s | nmt_acc={nmt_epoch_state.accuracy():.3f} | nmt_loss={nmt_epoch_state.xent():.3f} | mlp_acc={mlp_epoch_state.accuracy():.3f} | mlp_loss={mlp_epoch_state.xent():.3f}")
-   
-        
+    print(f"Valid | data_num={len(iterator.dataset):6} | time={nmt_epoch_state.elapsed_time():4.1}s | nmt_acc={nmt_epoch_state.accuracy():.3f} | nmt_loss={nmt_epoch_state.xent():.3f} | mlp_acc={mlp_epoch_state.accuracy():.3f} | mlp_loss={mlp_epoch_state.xent():.3f}")
+
+
 def main():
     print("### Load option")
     opt = load_option()
@@ -119,7 +118,7 @@ def main():
     print("### Build iterator")
     print("Num of train examples:" + str(len(data['train']['source'])))
     print("Num of valid examples:" + str(len(data['valid']['source'])))
-    print("Num of test examples:" + str(len(data['test']['source'])))
+    print("Num of test  examples:" + str(len(data['test']['source'])))
     train_iter = build_iterator(opt, data['train'])
     valid_iter = build_iterator(opt, data['valid'])
     test_iter = build_iterator(opt, data['test'])
