@@ -91,13 +91,16 @@ if __name__ == '__main__':
             data_text_positive['label']     = 1
             
             data_text_negative['beforefix'] = javalang_tokens_solve(javalang.tokenizer.tokenize(dataset[faultType]['negative'][i]))
-            data_text_negative['afterfix']  = javalang_tokens_solve(javalang.tokenizer.tokenize(dataset[faultType]['negative'][i].replace("rank2fixstart", " ").replace("rank2fixend", " ")))
+            data_text_negative['afterfix']  = ['noChange']
             data_text_negative['label']     = 0;
             
             data.append(data_text_positive.copy())
             data.append(data_text_negative.copy())
+            
             beforefix_len.append(str(len(data_text_positive['beforefix'])))
+            beforefix_len.append(str(len(data_text_negative['beforefix'])))
             afterfix_len.append(str(len(data_text_positive['afterfix'])))
+            afterfix_len.append(str(len(data_text_negative['afterfix'])))
         data_text_length = len(data)
         
         write_path = os.path.join("/home/LAB/caohl/TransferExtend/data/data-diff", faultType)

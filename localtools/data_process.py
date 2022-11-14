@@ -35,7 +35,7 @@ def work(faultType):
     
     print("### 获取参数")
     maxBeforeFixLength = 500
-    maxAfterFixLength = 100
+    maxAfterFixLength = 200
     print(f"maxBeforeFixLength: {maxBeforeFixLength}")
     print(f"maxAfterFixLength : {maxAfterFixLength}")
     
@@ -43,9 +43,11 @@ def work(faultType):
     print(f"Before: {len(dataToken)}")
     tmp = []
     for i in range(0, len(dataToken), 2):
-        if (len(dataToken[i]['beforefix']) <= maxBeforeFixLength) and (len(dataToken[i]['afterfix']) <= maxAfterFixLength):
-            tmp.append(dataToken[i])
-            tmp.append(dataToken[i + 1])
+        print(f"positive : {len(dataToken[i]['beforefix']):4}, {len(dataToken[i]['afterfix']):4}")
+        print(f"negative : {len(dataToken[i + 1]['beforefix']):4}, {len(dataToken[i + 1]['afterfix']):4}")
+        # if (len(dataToken[i]['beforefix']) <= maxBeforeFixLength) and (len(dataToken[i]['afterfix']) <= maxAfterFixLength) and (len(dataToken[i + 1]['beforefix']) <= maxBeforeFixLength) and (len(dataToken[i + 1]['afterfix']) <= maxAfterFixLength):
+            # tmp.append(dataToken[i])
+            # tmp.append(dataToken[i + 1])
     dataToken = tmp
     
     print(f"After : {len(dataToken)}")
@@ -88,6 +90,8 @@ def work(faultType):
     write_pkl(os.path.join(writePath, "test.pkl"), test)
 
 if __name__ == '__main__':
+    # work('MutateDataType')
+    
     faultTypes = []
     data_path = '/home/LAB/caohl/TransferExtend/data/data-diff'
     for root, dirs, files in os.walk(data_path):
@@ -96,4 +100,3 @@ if __name__ == '__main__':
     
     for faultType in faultTypes:
         work(faultType)
-    

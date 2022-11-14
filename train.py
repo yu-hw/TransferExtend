@@ -26,10 +26,8 @@ def load_data(opt):
 
 
 def build_vocab(opt, data):
-    src = data['train']['source'] + \
-        data['valid']['source'] + data['test']['source']
-    tgt = data['train']['target'] + \
-        data['valid']['target'] + data['test']['target']
+    src = data['train']['source']
+    tgt = data['train']['target']
     return vocab.build_vocab(opt, src, tgt)
 
 
@@ -44,7 +42,6 @@ def build_iterator(opt, data):
 
 def build_net(opt):
     return model.buildMultitaskModel(opt)
-    # return model.buildOriginModel(opt)
 
 
 def build_optimizer(opt, net):
