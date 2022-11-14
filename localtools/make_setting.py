@@ -21,8 +21,8 @@ def origin_opt():
 
 def process_opt(opt):
     opt['data'] = {}
-    opt['data']['path'] = os.path.join(opt['data_path'], opt['fault_type'])
-    opt['data']['fault_type'] = opt['fault_type']
+    opt['data']['path'] = os.path.join(opt['data_path'], opt['faultType'])
+    opt['data']['faultType'] = opt['faultType']
     opt['data']['shuffle'] = True
     opt['data']['batch_size'] = opt['batch_size']
 
@@ -49,17 +49,17 @@ def process_opt(opt):
 
     
 def main():
-    fault_type = []
+    faultTypes = []
     data_path = '/home/LAB/caohl/TransferExtend/data/data-origin'
     for root, dirs, files in os.walk(data_path):
         if 'train.pkl' in files:
             name = os.path.split(root)[-1]
-            fault_type.append(name)
+            faultTypes.append(name)
     
     json_path = '/home/LAB/caohl/TransferExtend/train-setting'
-    for name in fault_type:
+    for name in faultTypes:
         opt = origin_opt()
-        opt['fault_type'] = name
+        opt['faultType'] = name
         process_opt(opt)
         with open(os.path.join(json_path, name + '.json'), 'w') as f:
             f.write(json.dumps(opt))
