@@ -12,8 +12,7 @@ def origin_opt():
     opt['MLP_weight'] = 1
     opt['max_pred_len'] = 500
     opt['batch_size'] = 24
-    opt['data_path'] = '/home/LAB/caohl/TransferExtend-new/data'
-    opt['fault_type'] = "MutateDataType"
+    opt['data_path'] = '/home/LAB/caohl/TransferExtend/data/data-origin'
     opt['vocab_min_freq'] = 5
     
     opt['mlp_dropout'] = 0
@@ -50,26 +49,20 @@ def process_opt(opt):
 
     
 def main():
-    # fault_type = []
-    # data_path = '/home/LAB/caohl/TransferExtend/data'
-    # for root, dirs, files in os.walk(data_path):
-    #     if 'train.pkl' in files:
-    #         name = os.path.split(root)[-1]
-    #         fault_type.append(name)
+    fault_type = []
+    data_path = '/home/LAB/caohl/TransferExtend/data/data-origin'
+    for root, dirs, files in os.walk(data_path):
+        if 'train.pkl' in files:
+            name = os.path.split(root)[-1]
+            fault_type.append(name)
     
     json_path = '/home/LAB/caohl/TransferExtend/train-setting'
-    # for name in fault_type:
-    #     opt = origin_opt()
-    #     opt['fault_type'] = name
-    #     process_opt(opt)
-    #     with open(os.path.join(json_path, name + '.json'), 'w') as f:
-    #         f.write(json.dumps(opt))
-    fault_type = "MutateDataType"
-    opt = origin_opt()
-    opt['fault_type'] = fault_type
-    process_opt(opt)
-    with open(os.path.join(json_path, fault_type + '.json'), 'w') as f:
-        f.write(json.dumps(opt))
+    for name in fault_type:
+        opt = origin_opt()
+        opt['fault_type'] = name
+        process_opt(opt)
+        with open(os.path.join(json_path, name + '.json'), 'w') as f:
+            f.write(json.dumps(opt))
     
 
 if __name__ == '__main__':

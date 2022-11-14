@@ -52,7 +52,7 @@ def javalang_tokens_solve(javalang_tokens):
 
 if __name__ == '__main__':
     print("### 读取数据集")
-    dataset_pkl_path = '../data/dataset.pkl'
+    dataset_pkl_path = '/home/LAB/yuhw/SE/data/dataset_pre_diff_11.10.pkl'
     dataset = read_pkl(dataset_pkl_path)
     print("### 获取参数")
     max_length = 500
@@ -81,7 +81,7 @@ if __name__ == '__main__':
         
         for i in range(data_length):    
             data_text['beforefix'].append(dataset[faultType]['positive'][i])
-            data_text['afterfix'].append(dataset[faultType]['patch'][i])
+            data_text['afterfix'].append(dataset[faultType]['positive_pre_diff'][i])
             data_text['label'].append(1)
             data_text['beforefix'].append(dataset[faultType]['negative'][i])
             data_text['afterfix'].append(dataset[faultType]['negative'][i].replace("rank2fixstart", " ").replace("rank2fixend", " "))
@@ -96,6 +96,8 @@ if __name__ == '__main__':
         data_token['afterfix'] = []
         data_token['label'] = []
         
+        beforefix_len = []
+        afterfix_len  = []
         for i in range(data_text_length):
             # 将驼峰命名和下划线命名强制分离
             beforefix   =   javalang_tokens_solve(javalang.tokenizer.tokenize(data_text['beforefix'][i]))

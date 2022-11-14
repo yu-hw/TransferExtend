@@ -46,8 +46,10 @@
 - [x] 完成 MLP 模型构建
 - [x] 合并 encoder-decoder 和 MLP 模型（multitask）
 - [x] 测试 multitask 模型
+- [x] 修复原有 BUG
+- [x] vocab size 覆盖：精调每个模型的 batch_size 等参数防止爆炸
 - [ ] diff origin
-  - [ ] 查看 diff 后如何截断数据
+  - [ ] diff 后长度覆盖
 
 ## 当前问题
 
@@ -57,6 +59,7 @@
 - [x] mlp initial input 获取问题
 - [x] loss 计算方式
 - [x] 多训练配置
+- [x] loss 不收敛
 
 ## 资料补充
 
