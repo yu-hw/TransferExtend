@@ -43,11 +43,9 @@ def work(faultType):
     print(f"Before: {len(dataToken)}")
     tmp = []
     for i in range(0, len(dataToken), 2):
-        print(f"positive : {len(dataToken[i]['beforefix']):4}, {len(dataToken[i]['afterfix']):4}")
-        print(f"negative : {len(dataToken[i + 1]['beforefix']):4}, {len(dataToken[i + 1]['afterfix']):4}")
-        # if (len(dataToken[i]['beforefix']) <= maxBeforeFixLength) and (len(dataToken[i]['afterfix']) <= maxAfterFixLength) and (len(dataToken[i + 1]['beforefix']) <= maxBeforeFixLength) and (len(dataToken[i + 1]['afterfix']) <= maxAfterFixLength):
-            # tmp.append(dataToken[i])
-            # tmp.append(dataToken[i + 1])
+        if (len(dataToken[i]['beforefix']) <= maxBeforeFixLength) and (len(dataToken[i]['afterfix']) <= maxAfterFixLength) and (len(dataToken[i + 1]['beforefix']) <= maxBeforeFixLength) and (len(dataToken[i + 1]['afterfix']) <= maxAfterFixLength):
+            tmp.append(dataToken[i])
+            tmp.append(dataToken[i + 1])
     dataToken = tmp
     
     print(f"After : {len(dataToken)}")

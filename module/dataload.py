@@ -12,7 +12,6 @@ def write_pkl(obj, filepath):
 
 
 def load_data(opt):
-    fault_type = opt['data']['fault_type']
     data_path = opt['data']['path']
     
     dataType = ['train', 'valid', 'test']

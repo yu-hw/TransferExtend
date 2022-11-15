@@ -14,15 +14,14 @@ def origin_opt():
     opt['max_pred_len'] = 500
     opt['batch_size'] = 32
     opt['vocab_min_freq'] = 5
-    
+    opt['data_path'] = ""
     opt['mlp_dropout'] = 0
     opt['mlp_layer_size'] = [opt['hidden_size'] * 2, 2]
     return opt
 
 def process_opt(opt):
     opt['data'] = {}
-    opt['data']['path'] = os.path.join(opt['data_path'], opt['fault_type'])
-    opt['data']['fault_type'] = opt['fault_type']
+    opt['data']['path'] = opt['data_path']
     opt['data']['shuffle'] = True
     opt['data']['batch_size'] = opt['batch_size']
 
@@ -62,21 +61,23 @@ def single():
 
 
 def multi():
-    faultTypes = []
+    dir_names = []
     data_path = '/home/LAB/caohl/TransferExtend/data/data-diff'
     for root, dirs, files in os.walk(data_path):
         if 'train.pkl' in files:
-            name = os.path.split(root)[-1]
-            faultTypes.append(name)
+            dir_name = os.path.split(root)[-1]
+            dir_names.append(dir_name)
     
     json_path = '/home/LAB/caohl/TransferExtend/train-setting'
-    for name in faultTypes:
+    for dir_name in dir_names:
         opt = origin_opt()
-        opt['fault_type'] = name
+        opt['data_path'] = os.path.join(data_path, dir_name)
         process_opt(opt)
-        with open(os.path.join(json_path, name + '.json'), 'w') as f:
+        print(f"[{dir_name}]")
+        print(f"{os.path.join(json_path, dir_name + '.json')}")
+        with open(os.path.join(json_path, dir_name + '.json'), 'w') as f:
             f.write(json.dumps(opt))
     
 
 if __name__ == '__main__':
-    single()
+    multi()

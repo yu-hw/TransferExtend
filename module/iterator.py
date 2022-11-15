@@ -6,8 +6,8 @@ class PreDataSet(torch.utils.data.Dataset):
         self.source = torch.tensor(data['source'])
         self.target = torch.tensor(data['target'])
         self.label  = torch.tensor(data['label'])
-        self.source_length = torch.tensor(data['source_length'])
-        self.target_length = torch.tensor(data['target_length'])
+        self.source_length = torch.tensor([len(line) for line in data['source']])
+        self.target_length = torch.tensor([len(line) for line in data['target']])
         self.len = len(self.source)
 
     def __len__(self):
