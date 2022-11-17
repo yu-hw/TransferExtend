@@ -72,6 +72,8 @@ def multi():
     for dir_name in dir_names:
         opt = origin_opt()
         opt['data_path'] = os.path.join(data_path, dir_name)
+        opt['NMT_weight'] = 0.1
+        opt['MLP_weight'] = 0.9
         process_opt(opt)
         print(f"[{dir_name}]")
         print(f"{os.path.join(json_path, dir_name + '.json')}")

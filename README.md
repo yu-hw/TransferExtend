@@ -17,9 +17,12 @@
 .
 ├── data
 ├── localtools
-│   ├── data_process.out
+│   ├── data_diff_not_use.py
+│   ├── data_len.py
 │   ├── data_process.py
-│   ├── make-setting.py
+│   ├── data_tokenizer.py
+│   ├── len_out
+│   ├── make_setting.py
 │   ├── run.py
 │   └── run.sh
 ├── module
@@ -48,8 +51,8 @@
 - [x] 测试 multitask 模型
 - [x] 修复原有 BUG
 - [x] vocab size 覆盖：精调每个模型的 batch_size 等参数防止爆炸
-- [ ] diff origin
-  - [ ] diff 后长度覆盖
+- [x] diff origin
+  - [x] diff 后长度覆盖
 
 ## 当前问题
 

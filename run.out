@@ -1,4 +1,1 @@
 running:RemoveBuggyStmt
-running:MutateLiteralExpr
-running:MutateOperators
-running:MutateReturnStmt
