@@ -7,13 +7,18 @@ import module.iterator as iterator
 import module.loss as loss
 import module.statistics as statistics
 import module.utils as utils
+import os
+import torch
 
 import sys
 import json
 
+
+
 def load_option():
     try:
         file_name = sys.argv[1]
+        # file_name = '/home/LAB/yuhw/SE/TransferExtend-05-95-save/train-setting-05-95/MutateOperators.json'
         with open(file_name, 'r') as f:
             return json.load(f)
     except Exception as e:
@@ -89,8 +94,10 @@ def validation_step(opt, net, iterator, ctiterion):
         loss, nmt_loss, mlp_loss, nmt_state, mlp_state = ctiterion(dec_outs, tgt, mlp_outs, label, train=False)
         nmt_epoch_state.update(nmt_state)
         mlp_epoch_state.update(mlp_state)
-    print(f"Valid | data_num={len(iterator.dataset):6} | time={nmt_epoch_state.elapsed_time():4.1f}s | nmt_acc={nmt_epoch_state.accuracy():.3f} | nmt_loss={nmt_epoch_state.xent():.3f} | mlp_acc={mlp_epoch_state.accuracy():.3f} | mlp_loss={mlp_epoch_state.xent():.3f}")
 
+    print(f"Valid | data_num={len(iterator.dataset):6} | time={nmt_epoch_state.elapsed_time():4.1f}s | nmt_acc={nmt_epoch_state.accuracy():.3f} | nmt_loss={nmt_epoch_state.xent():.3f} | mlp_acc={mlp_epoch_state.accuracy():.3f} | mlp_loss={mlp_epoch_state.xent():.3f}")
+    recent_acc = mlp_epoch_state.accuracy()
+    return recent_acc
 
 def main():
     print("### Load option")
@@ -134,10 +141,29 @@ def main():
     # 7.训练
     print('Start training ...')
     epoch = opt['epoch']
+
+    best_val_acc = 0.0
+    fix_pattern = (opt['data_path'].split('/')[-1]).split('.')[0]
+
+    model_save_dir = "/home/LAB/yuhw/SE/TransferExtend-05-95-save/model_save/{}/".format(fix_pattern)
+    if not os.path.exists(model_save_dir):
+        os.makedirs(model_save_dir)
+    print('Creat the dir...',model_save_dir)
+
     for i in range(epoch):
         print("[Epoch " + str(i) + '/' + str(epoch) + ']')
         train_step(opt, net, train_iter, optimizer, ctiterion)
-        validation_step(opt, net, valid_iter, ctiterion)
+        recent_acc = validation_step(opt, net, valid_iter, ctiterion)
+
+        if recent_acc > best_val_acc:
+            best_val_acc = recent_acc
+            torch.save(net.state_dict(), os.path.join(model_save_dir, "model_params.pkl"))
+            print('Creat the model_params.pkl.....')
+            torch.save(net, os.path.join(model_save_dir, "model.pkl"))
+            print('Creat the model.pkl.....')
+
+
+            print("=" * 30 + "\n" + fix_pattern +"--Saving model: epoch_{}".format(i + 1))
     
 
 if __name__ == '__main__':
